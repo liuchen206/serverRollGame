@@ -73,6 +73,7 @@ exports.begin = function (roomId) {
         data.coin = seats[i].coin;
         data.currentChessGirdIndex = seats[i].currentChessGirdIndex; // 棋盘上的位置
         data.chosedRole = -1; // 选择的角色--- 这是创建房间时没有的变量，创建游戏时新加入的
+        data.occupyGround = [];// 玩家在游戏过程中购得的土地
 
         // 为了快速定位游戏内玩家,这样在存下
         gameSeatsOfUsers[data.userId] = data;
@@ -183,9 +184,53 @@ exports.playerTakeHander = function (game) {
     if (!userData) {
         console.log('没有找到游戏座位信息', game.currentOperator)
         return;
-    } else {
-        console.log('座位接管操作', game.currentOperator)
     }
+    // console.log('座位接管操作', game.currentOperator)
     var uid = userData.userId;
     userMgr.broacastInRoom('game_player_take_heander_push', { userId: uid }, uid, true);
+}
+// 玩家购得土地
+exports.playerBuyGround = function (whoBuy, buyWhat, buyWhere) {
+    var seatData = gameSeatsOfUsers[whoBuy];
+    if (seatData == null) {
+        console.log("玩家游戏数据没找到，买不了.");
+        return;
+    }
+    // 游戏状态检查
+    var game = seatData.game;
+    if (game.state != "playing") {
+        console.log("游戏状态在playing才会产生买土地，而不是 game.state == " + game.state);
+        return;
+    }
+    // 更新玩家占有土地信息
+    var buildingStruct = { userId: whoBuy, buildingId: buyWhat, belongToChessGird: buyWhere };
+    seatData.occupyGround.push(buildingStruct);
+    // 通知所有人
+    userMgr.broacastInRoom('game_player_buy_ground_push', buildingStruct, whoBuy, true);
+}
+// 
+exports.coinsTransfer = function (from, to, howMuch) {
+    var seatDataFrom = gameSeatsOfUsers[from];
+    if (seatDataFrom == null) {
+        console.log("玩家游戏数据没找到，from.");
+        return;
+    }
+    var seatDataTo = gameSeatsOfUsers[to];
+    if (seatDataTo == null) {
+        console.log("玩家游戏数据没找到，to.");
+        return;
+    }
+    seatDataFrom.coin -= howMuch;
+    seatDataTo.coin += howMuch;
+    var transData = {
+        transList: [{
+            userId: from,
+            coinVale: howMuch * -1,
+        },
+        {
+            userId: to,
+            coinVale: howMuch,
+        }],
+    }
+    userMgr.broacastInRoom('game_player_coins_change_push', transData, from, true);
 }

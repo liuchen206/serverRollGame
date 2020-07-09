@@ -220,7 +220,7 @@ exports.start = function (config, mgr) {
             var roleid = data;
             socket.gameMgr.choseRole(socket.userId, roleid);
         });
-        // 同步状态
+        // 同步指令状态
         socket.on('syncOBJAction', function (data) {
             data = JSON.parse(data);
             var userId = socket.userId;
@@ -258,8 +258,46 @@ exports.start = function (config, mgr) {
             // var data = {
             //     userId: uid,
             // }
-            console.log('arriveDestination', userId, data.userId)
+            // console.log('arriveDestination', userId, data.userId)
             socket.gameMgr.arriveDestination(socket.userId);
+        });
+        // 玩家购得土地
+        socket.on('playerBuyGround', function (data) {
+            data = JSON.parse(data);
+            var userId = socket.userId;
+            if (userId == null) {
+                return;
+            }
+            var roomId = roomMgr.getUserRoom(userId);
+            if (roomId == null) {
+                console.log('没有房间信息，无法同步');
+                return;
+            }
+            // var data = {
+            //     userId: uid, // 谁买
+            //     buildingId: 1, // 买了什么样的
+            //     belongToChessGird: 0,// 买在哪个棋盘格子上
+            // }
+            // console.log('playerBuyGround', data.belongToChessGird, data.userId)
+            socket.gameMgr.playerBuyGround(data.userId, data.buildingId, data.belongToChessGird);
+        });
+        // 玩家金币转移
+        socket.on('coinsTransfer', function (data) {
+            data = JSON.parse(data);
+            var userId = socket.userId;
+            if (userId == null) {
+                return;
+            }
+            var roomId = roomMgr.getUserRoom(userId);
+            if (roomId == null) {
+                console.log('没有房间信息，无法同步');
+                return;
+            }
+            // from: from,
+            // to: to,
+            // coisValue: coisValue,
+            console.log('coinsTransfer', data.coisValue)
+            socket.gameMgr.coinsTransfer(data.from, data.to, data.coisValue);
         });
     });
 };

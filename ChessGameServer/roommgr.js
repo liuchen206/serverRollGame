@@ -104,7 +104,7 @@ exports.createRoom = function (creator, roomConf, gems, ip, port, callback) {
                             name: "",
                             ready: false,
                             seatIndex: i,
-                            currentChessGirdIndex: i,
+                            currentChessGirdIndex: 0,
                             ip: "", // 长连接握手IP地址。由客户端发起长连接时赋值
                         });
                     }
@@ -190,7 +190,7 @@ function constructRoomFromDb(dbdata) {
         s.name = dbdata["user_name" + i];
         s.ready = false;
         s.seatIndex = i;
-        s.currentChessGirdIndex = i;
+        s.currentChessGirdIndex = 0;
         roomInfo.seats.push(s);
 
         //老规矩 ，当玩家入座之后，单独为已经入座的玩家创建一个索引。
