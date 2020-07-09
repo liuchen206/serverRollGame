@@ -57,8 +57,25 @@ app.get('/login', function (req, res) {
             account: data.account,
             name: data.name,
             gems: data.gems,
+            roomid: '',
         };
-        http.send(res, 0, "ok", ret); // 返回查询的账户信息
+        // 检查玩家是否在某局游戏中
+        db.get_room_id_of_user(data.uid, function (roomId) {
+            if (roomId != null) {
+                // 在检查这个房间还在不在
+                db.is_room_exist(roomId, function (retval) {
+                    if (retval) {
+                        ret.roomid = roomId;
+                    } else {
+                        //如果房间不在了，表示信息不同步，清除掉用户记录
+                        db.set_room_id_of_user(data.userid, null);
+                    }
+                    http.send(res, 0, "ok", ret);
+                });
+            } else {
+                http.send(res, 0, "ok", ret); // 返回查询的账户信息
+            }
+        });
     });
 });
 
@@ -116,10 +133,10 @@ app.get('/create_private_room', function (req, res) {
         var name = data.name;
         // 查找玩家已经存在的房间信息
         db.get_room_id_of_user(userId, function (roomId) {
-            // console.log('查询玩家  roomId', userId, roomId)
+            console.log('查询玩家  roomId', userId, roomId)
             if (roomId != null) {
                 // 已经有房间了，无法重新创建房间
-                http.send(res, -1, "依旧加入房间", roomId);
+                http.send(res, -1, "已经在房间" + roomId, null);
                 return;
             }
             // 正式创建房间
@@ -171,5 +188,42 @@ app.get('/create_private_room', function (req, res) {
             });
 
         })
+    });
+});
+//
+app.get('/enter_private_room', function (req, res) {
+    var data = req.query;
+    var roomId = data.roomid;
+    if (roomId == null) {
+        http.send(res, -1, "没有传送房间号.");
+        return;
+    }
+    if (!check_account(req, res)) {
+        return;
+    }
+    var account = data.account;
+    db.get_user_data(account, function (data) {
+        if (data == null) {
+            http.send(res, -1, "无法找到玩家数据");
+            return;
+        }
+        var userId = data.uid;
+        var name = data.name;
+        //进入房间
+        room_service.enterRoom(userId, name, roomId, function (errcode, enterInfo) {
+            if (enterInfo) {
+                var ret = {
+                    roomid: roomId,
+                    ip: enterInfo.ip,
+                    port: enterInfo.port,
+                    token: enterInfo.token,
+                    time: Date.now()
+                };
+                ret.sign = crypto.md5(roomId + ret.token + ret.time + config.ROOM_PRI_KEY);
+                http.send(res, 0, "ok", ret);
+            } else {
+                http.send(res, errcode, "进入房间失败.");
+            }
+        });
     });
 });

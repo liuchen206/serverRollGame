@@ -10,6 +10,25 @@ exports.start = function (config, mgr) {
     console.log("游戏服 长连接 监听端口 " + config.CLIENT_PORT);
 
     io.sockets.on('connection', function (socket) {
+        //断开链接
+        socket.on('disconnect', function (data) {
+            var userId = socket.userId;
+            if (!userId) {
+                return;
+            }
+            var data = {
+                userid: userId,
+                online: false
+            };
+
+            //通知房间内其它玩家，玩家掉线
+            userMgr.broacastInRoom('user_state_push', data, userId);
+
+            //清除玩家的在线信息
+            userMgr.del(userId);
+            socket.userId = null;
+        });
+        // 心跳保持
         socket.on('game_ping', function (data) {
             var userId = socket.userId;
             if (!userId) {
@@ -70,11 +89,13 @@ exports.start = function (config, mgr) {
                 seats.push({
                     userid: rs.userId,
                     ip: rs.ip,
-                    score: rs.score,
+                    coin: rs.coin,
                     name: rs.name,
                     online: online,
                     ready: rs.ready,
-                    seatindex: i
+                    seatindex: i,
+                    chosedRole: -1,
+                    currentChessGirdIndex: rs.currentChessGirdIndex,
                 });
 
                 if (userId == rs.userId) {
@@ -100,18 +121,145 @@ exports.start = function (config, mgr) {
             socket.emit('join_result', ret);
             //通知其它客户端
             userMgr.broacastInRoom('new_user_comes_push', userData, userId);
-
             //为本次连接设置游戏逻辑脚本
             socket.gameMgr = roomInfo.gameMgr;
+            //玩家上线，直接设置为TRUE. 取消了玩家手动点准备的功能
+            // socket.gameMgr.setReady(userId);
 
-            //玩家上线，强制设置为TRUE. 取消了玩家手动点准备的功能
-            socket.gameMgr.setReady(userId);
-
-            // todo 处理一进来就有发起解散房间的情况
+            // TODO 处理一进来就有发起解散房间的情况
             if (roomInfo.dr != null) {
 
             }
         });
+        // 玩家准备
+        socket.on('ready', function (data) {
+            var userId = socket.userId;
+            if (userId == null) {
+                return;
+            }
+            socket.gameMgr.setReady(userId);
+            userMgr.broacastInRoom('user_ready_push', { userid: userId, ready: true }, userId, true);
+        });
+        //解散房间，在游戏未开始阶段，房主可以通过此消息立即解散房间，不需要其他玩家同意
+        socket.on('dispress', function (data) {
+            var userId = socket.userId;
+            if (userId == null) {
+                console.log('找不到玩家，无法解散');
+                socket.emit('dispress_result', { errcode: 1, errmsg: "找不到玩家，无法解散" });
+                return;
+            }
 
+            var roomId = roomMgr.getUserRoom(userId);
+            if (roomId == null) {
+                console.log('找不到房间号，无法解散');
+                return;
+            }
+
+            //如果游戏已经开始，则不可以
+            if (socket.gameMgr.hasBegan(roomId)) {
+                console.log('游戏已经开始，请使用 dissolve_request 请所有人投票解散房间');
+                socket.emit('dispress_result', { errcode: 1, errmsg: "游戏已经开始，请使用 dissolve_request 请所有人投票解散房间" });
+                return;
+            }
+
+            //如果不是房主，则不能解散房间
+            if (roomMgr.isCreator(roomId, userId) == false) {
+                console.log('不是房主，无法解散');
+                socket.emit('dispress_result', { errcode: 1, errmsg: "不是房主，使用exit退出房间" });
+                return;
+            }
+
+            userMgr.broacastInRoom('dispress_result', { errcode: 0, errmsg: "OK" }, userId, true);
+            // 关闭整个房间的玩家连接
+            userMgr.kickAllInRoom(roomId);
+            // 清除房间内存
+            roomMgr.destroy(roomId);
+            socket.disconnect();
+        });
+        //退出房间
+        socket.on('exit', function (data) {
+            var userId = socket.userId;
+            if (userId == null) {
+                return;
+            }
+            var roomId = roomMgr.getUserRoom(userId);
+            if (roomId == null) {
+                socket.emit('exit_result', { errcode: 1, errmsg: "没有房间信息" });
+                return;
+            }
+            //如果游戏已经开始，则不可以
+            if (socket.gameMgr.hasBegan(roomId)) {
+                socket.emit('exit_result', { errcode: 1, errmsg: "游戏已经开始" });
+                return;
+            }
+            //如果是房主，则只能走解散房间
+            if (roomMgr.isCreator(userId)) {
+                socket.emit('exit_result', { errcode: 1, errmsg: "你是房主" });
+                return;
+            }
+            //通知其它玩家，有人退出了房间
+            userMgr.broacastInRoom('exit_notify_push', userId, userId, false);
+
+            //清除个人在房间内的信息
+            roomMgr.exitRoom(userId);
+            //清除个人的长连接信息
+            userMgr.del(userId);
+
+            socket.emit('exit_result', { errcode: 0, errmsg: "OK" });
+            socket.disconnect();
+        });
+
+        /**
+         * 游戏内消息
+         */
+        // 选择游戏角色
+        socket.on('chosingRole', function (data) {
+            if (socket.userId == null) {
+                return;
+            }
+            var roleid = data;
+            socket.gameMgr.choseRole(socket.userId, roleid);
+        });
+        // 同步状态
+        socket.on('syncOBJAction', function (data) {
+            data = JSON.parse(data);
+            var userId = socket.userId;
+            if (userId == null) {
+                return;
+            }
+            var roomId = roomMgr.getUserRoom(userId);
+            if (roomId == null) {
+                console.log('没有房间信息，无法同步');
+                return;
+            }
+            // var cmd = {
+            //     action: 'walk',
+            //     gridX: 0,
+            //     gridY: 0,
+            // }
+            if (data.action == 'walk') {
+                // console.log('syncOBJAction', data.action)
+                data.userId = userId;
+                userMgr.broacastInRoom('syncOBJActionToOther', data, userId, false);
+            }
+        });
+        // 玩家抵达消息
+        socket.on('arriveDestination', function (data) {
+            data = JSON.parse(data);
+            var userId = socket.userId;
+            if (userId == null) {
+                return;
+            }
+            var roomId = roomMgr.getUserRoom(userId);
+            if (roomId == null) {
+                console.log('没有房间信息，无法同步');
+                return;
+            }
+            // var data = {
+            //     userId: uid,
+            // }
+            console.log('arriveDestination', userId, data.userId)
+            socket.gameMgr.arriveDestination(socket.userId);
+        });
     });
 };

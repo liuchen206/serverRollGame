@@ -110,22 +110,24 @@ app.get('/enter_room', function (req, res) {
     var sign = req.query.sign;
     // 参数检查
     if (userId == null || roomId == null || sign == null) {
-        http.send(res, 1, "invalid parameters");
+        http.send(res, 1, "数据不全");
         return;
     }
     // 签名检查
+    // crypto.md5(userId + name + roomId + config.ROOM_PRI_KEY)
+    // console.log('游戏服核算签名字串', userId + name + roomId + config.ROOM_PRI_KEY)
     var md5 = crypto.md5(userId + name + roomId + config.ROOM_PRI_KEY);
     if (md5 != sign) {
-        http.send(res, 2, "sign check failed.");
+        http.send(res, 2, "签名验证失败.");
         return;
     }
     //安排玩家坐下
     roomMgr.enterRoom(roomId, userId, name, function (ret) {
         if (ret != 0) {
             if (ret == 1) {
-                http.send(res, 4, "room is full.");
+                http.send(res, 4, "房间已满.");
             } else if (ret == 2) {
-                http.send(res, 3, "can't find room.");
+                http.send(res, 3, "找不到房间.");
             }
             return;
         }

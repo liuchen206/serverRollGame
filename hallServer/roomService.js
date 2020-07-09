@@ -122,7 +122,9 @@ exports.enterRoom = function (userId, name, roomId, fnCallback) {
         roomid: roomId,
         sign: '',
     };
-    reqdata.sign = crypto.md5(userId + name + roomId + config.ROOM_PRI_KEY);
+    // crypto.md5(account + req.ip + config.ACCOUNT_PRI_KEY); 游客登录签名
+    reqdata.sign = crypto.md5(userId + name + roomId + config.ROOM_PRI_KEY); // 游戏内签名
+    // console.log('进入房间签名字串', userId + name + roomId + config.ROOM_PRI_KEY)
     // 房间游戏是否已经开始
     var checkRoomIsRuning = function (serverinfo, roomId, callback) {
         var sign = crypto.md5(roomId + config.ROOM_PRI_KEY);
@@ -186,7 +188,8 @@ exports.enterRoom = function (userId, name, roomId, fnCallback) {
                     }
                 });
             } else {
-
+                console.log("serverinfo == null时，重新选择服务器并且请求进入");
+                chooseServerAndEnter(serverinfo);
             }
         } else {
             fnCallback(-2, null);

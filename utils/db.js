@@ -169,24 +169,6 @@ exports.create_user = function (account, name, gems, callback) {
         callback(true);
     });
 };
-// 在数据库中查找是否玩家拥有房间id
-exports.get_room_id_of_user = function (userId, callback) {
-    callback = callback == null ? nop : callback;
-    var sql = 'SELECT roomId FROM t_users WHERE uid = "' + userId + '"';
-    console.log(sql);
-    query(sql, function (err, rows, fields) {
-        if (err) {
-            callback(null);
-            throw err;
-        } else {
-            if (rows.length > 0 && rows[0].roomId > 0) {
-                callback(rows[0].roomId);
-            } else {
-                callback(null);
-            }
-        }
-    });
-};
 // 查询玩家宝石数量
 exports.get_gems = function (account, callback) {
     callback = callback == null ? nop : callback;
@@ -276,11 +258,11 @@ exports.create_room = function (roomId, conf, ip, port, create_time, callback) {
     });
 };
 // 将一名入座玩家更新到数据库房间信息
-exports.update_seat_info = function (roomId, seatIndex, userId, name, callback) {
+exports.update_seat_info = function (roomId, seatIndex, userId, name, coin, callback) {
     callback = callback == null ? nop : callback;
-    var sql = 'UPDATE t_rooms SET user_id{0} = {1},user_name{0} = "{2}" WHERE roomId = "{3}"';
+    var sql = 'UPDATE t_rooms SET user_id{0} = {1},user_name{0} = "{2}",user_coin{0} = "{3}" WHERE roomId = "{4}"';
     // name = crypto.toBase64(name);
-    sql = sql.format(seatIndex, userId, name, roomId);
+    sql = sql.format(seatIndex, userId, name, coin, roomId);
     //console.log(sql);
     query(sql, function (err, row, fields) {
         if (err) {
@@ -344,9 +326,57 @@ exports.set_room_id_of_user = function (userId, roomId, callback) {
             console.log(err);
             callback(false);
             throw err;
-        }
-        else {
+        } else {
             callback(rows.length > 0);
         }
     });
 };
+// 获取玩家的历史房间记录
+exports.get_room_id_of_user = function (userId, callback) {
+    callback = callback == null ? nop : callback;
+    var sql = 'SELECT roomId FROM t_users WHERE uid = "' + userId + '"';
+    // console.log(sql);
+    query(sql, function (err, rows, fields) {
+        if (err) {
+            callback(null);
+            throw err;
+        } else {
+            if (rows.length > 0) {
+                callback(rows[0].roomId);
+            } else {
+                callback(null);
+            }
+        }
+    });
+};
+// 房间是否存在
+exports.is_room_exist = function (roomId, callback) {
+    callback = callback == null ? nop : callback;
+    var sql = 'SELECT * FROM t_rooms WHERE roomId = "' + roomId + '"';
+    query(sql, function (err, rows, fields) {
+        if (err) {
+            callback(false);
+            throw err;
+        } else {
+            callback(rows.length > 0);
+        }
+    });
+};
+// 销毁房间
+exports.delete_room = function (roomId, callback) {
+    callback = callback == null ? nop : callback;
+    if (roomId == null) {
+        callback(false);
+    }
+    var sql = "DELETE FROM t_rooms WHERE roomId = '{0}'";
+    sql = sql.format(roomId);
+    // console.log(sql);
+    query(sql, function (err, rows, fields) {
+        if (err) {
+            callback(false);
+            throw err;
+        } else {
+            callback(true);
+        }
+    });
+}

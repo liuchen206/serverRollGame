@@ -82,7 +82,7 @@ exports.createRoom = function (creator, roomConf, gems, ip, port, callback) {
                         id: roomId,
                         numOfGames: 0, //玩到第几局
                         createTime: createTime, // 房间创建时间
-                        nextOperator: 0, //下一个操作玩家
+                        nextOperator: 0, //下一局开局一个操作玩家
                         seats: [], // 玩家数据
                         creator: creator, // 房间创建者
                         gameType: roomConf.gameType, // 游戏类型
@@ -100,7 +100,7 @@ exports.createRoom = function (creator, roomConf, gems, ip, port, callback) {
                         // 玩家座位信息
                         roomInfo.seats.push({
                             userId: 0,
-                            score: 0,
+                            coin: 10000,
                             name: "",
                             ready: false,
                             seatIndex: i,
@@ -146,6 +146,16 @@ exports.getUserRoom = function (userId) {
     return null;
 };
 /**
+ * 玩家是不是房间的房主
+ */
+exports.isCreator = function (roomId, userId) {
+    var roomInfo = rooms[roomId];
+    if (roomInfo == null) {
+        return false;
+    }
+    return roomInfo.creator == userId;
+};
+/**
  * 返回房间信息
  */
 exports.getRoom = function (roomId) {
@@ -153,7 +163,7 @@ exports.getRoom = function (roomId) {
 };
 // 通过数据库读取的房间信息构建房间数据
 function constructRoomFromDb(dbdata) {
-    var roomConf = JSON.parse(dbdata.base_info);
+    var roomConf = JSON.parse(dbdata.baseInfo);
     var roomInfo = {
         id: dbdata.roomId,
         numOfGames: dbdata.numOfGames, //玩到第几局
@@ -176,7 +186,7 @@ function constructRoomFromDb(dbdata) {
     for (var i = 0; i < roomInfo.playerNum; ++i) {
         var s = {};
         s.userId = dbdata["user_id" + i];
-        s.score = dbdata["user_score" + i];
+        s.coin = dbdata["user_coin" + i];
         s.name = dbdata["user_name" + i];
         s.ready = false;
         s.seatIndex = i;
@@ -216,7 +226,7 @@ exports.enterRoom = function (roomId, userId, userName, callback) {
                     seatIndex: i
                 };
                 //console.log(userLocation[userId]);
-                db.update_seat_info(roomId, i, seat.userId, seat.name);
+                db.update_seat_info(roomId, i, seat.userId, seat.name, seat.coin);
                 //正常
                 return 0;
             }
@@ -265,3 +275,62 @@ exports.setReady = function (userId, value) {
     var s = room.seats[seatIndex];
     s.ready = value;
 }
+/**
+ * 单个玩家退出房间
+ */
+exports.exitRoom = function (userId) {
+    // 删除个人的定位信息
+    var location = userLocation[userId];
+    if (location == null) {
+        return;
+    }
+    var roomId = location.roomId;
+    var seatIndex = location.seatIndex;
+    var room = rooms[roomId];
+    delete userLocation[userId];
+    if (room == null || seatIndex == null) {
+        return;
+    }
+    // 删除个人桌上信息
+    var seat = room.seats[seatIndex];
+    seat.userId = 0;
+    seat.name = "";
+
+    var numOfPlayers = 0;
+    for (var i = 0; i < room.seats.length; ++i) {
+        if (room.seats[i].userId > 0) {
+            numOfPlayers++;
+        }
+    }
+    // 清除数据库的历史房间信息
+    db.set_room_id_of_user(userId, null);
+
+    // 如果桌上一个人没有了则销毁整个房间
+    if (numOfPlayers == 0) {
+        exports.destroy(roomId);
+    }
+};
+/**
+ * 销毁房间，包括房间信息rooms，座位信息userLocation，数据库房间号数据和单个玩家房间号信息
+ */
+exports.destroy = function (roomId) {
+    var roomInfo = rooms[roomId];
+    if (roomInfo == null) {
+        return;
+    }
+    for (var i = 0; i < roomInfo.playerNum; ++i) {
+        var userId = roomInfo.seats[i].userId;
+        if (userId > 0) {
+            // 删除用于定位玩家房间和座位号的信息
+            delete userLocation[userId];
+            // 删除玩家在users数据库的房间号信息
+            db.set_room_id_of_user(userId, null);
+        }
+    }
+    // 删除整个房间信息
+    delete rooms[roomId];
+    // 房间数量-1
+    totalRooms--;
+    // 删除rooms数据库的房间信息
+    db.delete_room(roomId);
+};
