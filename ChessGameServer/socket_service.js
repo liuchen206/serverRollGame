@@ -96,6 +96,7 @@ exports.start = function (config, mgr) {
                     seatindex: i,
                     chosedRole: -1,
                     currentChessGirdIndex: rs.currentChessGirdIndex,
+                    isBankrupted: false,
                 });
 
                 if (userId == rs.userId) {
@@ -296,8 +297,26 @@ exports.start = function (config, mgr) {
             // from: from,
             // to: to,
             // coisValue: coisValue,
-            console.log('coinsTransfer', data.coisValue)
+            // console.log('coinsTransfer', data.coisValue)
             socket.gameMgr.coinsTransfer(data.from, data.to, data.coisValue);
         });
+        // 锁定回合
+        socket.on('lockDown', function (data) {
+            data = JSON.parse(data);
+            var userId = socket.userId;
+            if (userId == null) {
+                return;
+            }
+            var roomId = roomMgr.getUserRoom(userId);
+            if (roomId == null) {
+                console.log('没有房间信息，无法同步');
+                return;
+            }
+            // who: gameSettingIns.uid, 锁定谁
+            // lockTimes: 2, 锁定几个回合
+            console.log('lockDown', data.lockTimes)
+            socket.gameMgr.lockDown(data.who, data.lockTimes);
+        });
+
     });
 };

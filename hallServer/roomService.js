@@ -192,6 +192,7 @@ exports.enterRoom = function (userId, name, roomId, fnCallback) {
                 chooseServerAndEnter(serverinfo);
             }
         } else {
+            console.log('get_room_addr', '没有正确返回房间地址', roomId)
             fnCallback(-2, null);
         }
     });

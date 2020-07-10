@@ -65,8 +65,9 @@ exports.begin = function (roomId) {
     roomInfo.numOfGames++; // 游戏进行了几句
     // 构建玩家游戏数据
     for (var i = 0; i < roomInfo.playerNum; ++i) {
-        var data = {}; // 初始化一个座位上的玩家信息
-        game.gameSeats.push(data);
+        console.log('构建游戏玩家数据', i, seats[i].userId)
+        var data = game.gameSeats[i] = {}; // 初始化一个座位上的玩家信息
+        // game.gameSeats.push(data);
         data.game = game;
         data.seatIndex = i;
         data.userId = seats[i].userId;
@@ -74,12 +75,15 @@ exports.begin = function (roomId) {
         data.currentChessGirdIndex = seats[i].currentChessGirdIndex; // 棋盘上的位置
         data.chosedRole = -1; // 选择的角色--- 这是创建房间时没有的变量，创建游戏时新加入的
         data.occupyGround = [];// 玩家在游戏过程中购得的土地
-
+        data.isBankrupted = false; // 是否破产了
+        data.lockDown = 0; // 锁定操作轮数剩余
         // 为了快速定位游戏内玩家,这样在存下
         gameSeatsOfUsers[data.userId] = data;
         // 同步下在进入房间时尚未初始化的参数--棋盘位置
         userMgr.broacastInRoom('game_update_chessIndex_push', { userId: data.userId, currentChessGirdIndex: data.currentChessGirdIndex }, roomInfo.creator, true);
     }
+    console.log('game 中游戏对象 0', game.gameSeats[0].userId)
+    console.log('game 中游戏对象 1', game.gameSeats[1].userId)
     // 保存游戏对局数据
     games[roomId] = game;
 
@@ -146,7 +150,7 @@ exports.choseRole = function (userId, roleid) {
         exports.playerTakeHander(game);
     }
 }
-// 玩家选择一个角色
+// 玩家抵达目的地
 exports.arriveDestination = function (userId) {
     var seatData = gameSeatsOfUsers[userId];
     if (seatData == null) {
@@ -175,6 +179,13 @@ exports.moveToNextPlayer = function (game) {
     var currentOperator = game.currentOperator;
     var playerNum = game.roomInfo.playerNum;
     var nextOpr = (currentOperator + 1) % playerNum;
+    // 破产玩家无法再操作。
+    var limit = 0; // 放置数据出错。堆栈崩溃
+    while (game.gameSeats[nextOpr].isBankrupted == true) {
+        nextOpr = (nextOpr + 1) % playerNum;
+        limit++;
+        if (limit > playerNum) return;
+    }
     game.currentOperator = nextOpr;
     exports.playerTakeHander(game);
 }
@@ -187,7 +198,8 @@ exports.playerTakeHander = function (game) {
     }
     // console.log('座位接管操作', game.currentOperator)
     var uid = userData.userId;
-    userMgr.broacastInRoom('game_player_take_heander_push', { userId: uid }, uid, true);
+    userMgr.broacastInRoom('game_player_take_heander_push', { userId: uid, lockDown: userData.lockDown }, uid, true);
+    userData.lockDown -= 1; // 所以这个值可能是负数，客户端只判断锁定轮数是否大于零即可
 }
 // 玩家购得土地
 exports.playerBuyGround = function (whoBuy, buyWhat, buyWhere) {
@@ -203,12 +215,20 @@ exports.playerBuyGround = function (whoBuy, buyWhat, buyWhere) {
         return;
     }
     // 更新玩家占有土地信息
-    var buildingStruct = { userId: whoBuy, buildingId: buyWhat, belongToChessGird: buyWhere };
-    seatData.occupyGround.push(buildingStruct);
-    // 通知所有人
-    userMgr.broacastInRoom('game_player_buy_ground_push', buildingStruct, whoBuy, true);
+    var buildCost = 1000; // 购买费用（这里不论买什么建筑都花费1000）
+    if (seatData.coin > buildCost) {
+        seatData.coin -= buildCost;
+        var buildingStruct = { result: 'ok', userId: whoBuy, buildingId: buyWhat, belongToChessGird: buyWhere, buildCost: buildCost };
+        seatData.occupyGround.push(buildingStruct);
+        // 通知所有人
+        userMgr.broacastInRoom('game_player_buy_ground_push', buildingStruct, whoBuy, true);
+    } else {
+        var buildingStruct = { result: 'noOk', userId: whoBuy, buildingId: buyWhat, belongToChessGird: buyWhere, buildCost: buildCost };
+        userMgr.broacastInRoom('game_player_buy_ground_push', buildingStruct, whoBuy, true);
+    }
+
 }
-// 
+// 玩家金币从一个玩家转移到另一个玩家
 exports.coinsTransfer = function (from, to, howMuch) {
     var seatDataFrom = gameSeatsOfUsers[from];
     if (seatDataFrom == null) {
@@ -221,6 +241,16 @@ exports.coinsTransfer = function (from, to, howMuch) {
         return;
     }
     seatDataFrom.coin -= howMuch;
+    if (seatDataFrom.coin <= 0) {
+        seatDataFrom.isBankrupted = true;
+        var winner = exports.winnerCheck(seatDataFrom.game);
+        if (winner > 0) {
+            // 游戏即将结束
+        } else {
+            // 游戏还需继续，通知游戏中产出破产玩家
+            userMgr.broacastInRoom('game_player_bankrupted_push', seatDataFrom.userId, from, true);
+        }
+    }
     seatDataTo.coin += howMuch;
     var transData = {
         transList: [{
@@ -233,4 +263,69 @@ exports.coinsTransfer = function (from, to, howMuch) {
         }],
     }
     userMgr.broacastInRoom('game_player_coins_change_push', transData, from, true);
+}
+// 胜利检测
+exports.winnerCheck = function (game) {
+    var seats = game.gameSeats;
+    if (!seats) {
+        console.log('winnerCheck 时没有找到游戏座位信息')
+        return;
+    }
+    var winner = 0;
+    for (var index = 0; index < seats.length; index++) {
+        var seatData = seats[index];
+        if (seatData.isBankrupted == false) {
+            // console.log('winnerCheck ', index, winner, seatData.userId)
+            if (winner == 0) {
+                winner = seatData.userId;
+            } else {
+                // 尚未破产的不是唯一，游戏未产生胜利者
+                return 0;
+            }
+        }
+    }
+    if (winner == 0) return 0; // 这种情况发生在所有人都破产了。
+    console.log('winnerCheck 胜利者产生', winner)
+    userMgr.broacastInRoom('game_winner_come_push', winner, winner, true);
+    exports.closeGame(game, winner);
+    return winner;
+}
+// 关闭游戏
+exports.closeGame = function (game, userId) {
+    var roomId = roomMgr.getUserRoom(userId);
+    if (roomId == null) {
+        console.log("玩家房间ID没找到");
+        return;
+    }
+    var roomInfo = roomMgr.getRoom(roomId);
+    if (roomInfo == null) {
+        console.log("玩家房间数据没找到");
+        return;
+    }
+    if (game != null) {
+        delete games[roomId];
+    }
+    setTimeout(function () {
+        userMgr.kickAllInRoom(roomId);
+        roomMgr.destroy(roomId);
+    }, 5500);
+}
+// 禁止玩家操作
+exports.lockDown = function (who, lockTimes) {
+    var roomId = roomMgr.getUserRoom(who);
+    if (roomId == null) {
+        console.log("玩家房间ID没找到");
+        return;
+    }
+    var roomInfo = roomMgr.getRoom(roomId);
+    if (roomInfo == null) {
+        console.log("玩家房间数据没找到");
+        return;
+    }
+    var seatData = gameSeatsOfUsers[who];
+    if (seatData == null) {
+        console.log("玩家游戏数据没找到");
+        return;
+    }
+    seatData.lockDown = lockTimes;
 }
