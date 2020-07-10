@@ -40,7 +40,7 @@ app.get('/register_gs', function (req, res) {
             return;
         }
         info.load = load;
-        http.send(res, 0, "ok", { ip: ip });
+        http.send(res, 0, "ok", { ip: clientip }); // 这个位置是返回 ip clientip有过争议
     } else {
         // 不存在，则保存新的地址
         serverMap[id] = {
@@ -52,7 +52,7 @@ app.get('/register_gs', function (req, res) {
             load: load,
             serverType: serverType
         };
-        http.send(res, 0, "ok", { ip: ip });  // 返回注册成功
+        http.send(res, 0, "ok", { ip: clientip });  // 返回注册成功
         console.log("游戏服地址成功注册 .\n\tid:" + id + "\n\taddr:" + ip + "\n\thttp port:" + httpPort + "\n\tsocket clientport:" + clientport + " 游戏的类型：" + serverType);
     }
 });
@@ -175,6 +175,7 @@ exports.enterRoom = function (userId, name, roomId, fnCallback) {
     db.get_room_addr(roomId, function (ret, ip, port) {
         if (ret) {
             var id = ip + ":" + port;
+            console.log('游戏服务器 id', id)
             var serverinfo = serverMap[id];
             if (ip = '127.0.0.1' && !serverinfo) { // 当使用本地服务器是，注册时使用的 ‘localhost’ 但是创建房间时痛的ip地址段。也就是这里数据库返回的ip字段； 当使用外网时注册和写入数据库的都是ip
                 serverinfo = serverMap['localhost' + ":" + port];

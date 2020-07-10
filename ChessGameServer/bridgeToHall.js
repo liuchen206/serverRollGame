@@ -7,6 +7,7 @@ var roomMgr = require("./roommgr");
 var app = express();
 var config = null;
 
+var gameServerInfo = null;
 exports.start = function ($config) {
     config = $config;
     gameServerInfo = {
@@ -32,7 +33,6 @@ app.all('*', function (req, res, next) {
 /**
  * 向大厅服务器同步房间信息
  */
-var gameServerInfo = null;
 var lastTickTime = 0;
 var serverIp = ""; // 游戏服务器地址（起始就是自己的ip）
 function update() {
@@ -45,6 +45,7 @@ function update() {
                     console.log(data.errmsg);
                 }
                 if (data.ip != null) {
+                    // console.log('大厅注册返回ip ', data.ip)
                     serverIp = data.ip;
                 }
             } else {

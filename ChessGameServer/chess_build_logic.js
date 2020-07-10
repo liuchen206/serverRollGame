@@ -287,11 +287,12 @@ exports.winnerCheck = function (game) {
     if (winner == 0) return 0; // 这种情况发生在所有人都破产了。
     console.log('winnerCheck 胜利者产生', winner)
     userMgr.broacastInRoom('game_winner_come_push', winner, winner, true);
-    exports.closeGame(game, winner);
+    exports.closeGame(winner, 5500);
     return winner;
 }
 // 关闭游戏
-exports.closeGame = function (game, userId) {
+exports.closeGame = function (userId, delayTime) {
+    if (!delayTime) delayTime = 100;
     var roomId = roomMgr.getUserRoom(userId);
     if (roomId == null) {
         console.log("玩家房间ID没找到");
@@ -302,13 +303,18 @@ exports.closeGame = function (game, userId) {
         console.log("玩家房间数据没找到");
         return;
     }
-    if (game != null) {
+    if (games[roomId]) {
+        var game = games[roomId];
+        for (var i = 0; i < roomInfo.seats.length; ++i) {
+            var sd = game.gameSeats[i];
+            delete gameSeatsOfUsers[sd.userId];
+        }
         delete games[roomId];
     }
     setTimeout(function () {
         userMgr.kickAllInRoom(roomId);
         roomMgr.destroy(roomId);
-    }, 5500);
+    }, delayTime);
 }
 // 禁止玩家操作
 exports.lockDown = function (who, lockTimes) {

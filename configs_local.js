@@ -1,4 +1,5 @@
-var LOCAL_IP = 'localhost';
+var Server_IP = 'localhost'; // 本地开发测试
+// var Server_IP = "47.111.248.48"; // 外网客户端和服务器交互地址
 
 var ACCOUNT_PORT = 9000; // 账号服服务端口
 var HALL_CLIENT_PORT = 9001; // 大厅服与帐号服服务端口
@@ -10,6 +11,7 @@ var GAME_CONECT_PORT = 10000; // 长连接端口
 var ACCOUNT_PRI_KEY = "^&*#$%()@"; // 帐号服通讯私钥
 var ROOM_PRI_KEY = "~!@#$(*&^%$&";
 
+var LOCAL_IP = 'localhost'; // 服务器不同服务之间交互地址
 
 exports.mysql = function () {
     return {
@@ -25,7 +27,7 @@ exports.account_server = function () {
     return {
         CLIENT_PORT: ACCOUNT_PORT,
         // 交给客户端的大厅服务地址
-        HALL_IP: LOCAL_IP,
+        HALL_IP: Server_IP,
         HALL_CLIENT_PORT: HALL_CLIENT_PORT,
         ACCOUNT_PRI_KEY: ACCOUNT_PRI_KEY,
 
@@ -39,7 +41,7 @@ exports.account_server = function () {
 exports.hall_server = function () {
     return {
         // 大厅与账号服交互地址与端口
-        HALL_IP: LOCAL_IP,
+        HALL_IP: Server_IP,
         CLEINT_PORT: HALL_CLIENT_PORT,
 
         // 大厅留给游戏服服交互地址与端口
@@ -69,7 +71,7 @@ exports.chess_game_server = function () {
         ROOM_PRI_KEY: ROOM_PRI_KEY,
 
         //暴露给客户端的长连接端口
-        CLIENT_IP: LOCAL_IP,
+        CLIENT_IP: Server_IP,
         CLIENT_PORT: GAME_CONECT_PORT,
     };
 };

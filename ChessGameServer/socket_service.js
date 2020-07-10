@@ -209,6 +209,14 @@ exports.start = function (config, mgr) {
             socket.emit('exit_result', { errcode: 0, errmsg: "OK" });
             socket.disconnect();
         });
+        // 发起解散房间
+        socket.on('dissolve_request', function (data) {
+            var userId = socket.userId;
+            if (userId == null) {
+                return;
+            }
+            socket.gameMgr.closeGame(userId);
+        });
 
         /**
          * 游戏内消息
