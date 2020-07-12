@@ -39,10 +39,40 @@ exports.setReady = function (userId, callback) {
             console.log('人数不满足开始游戏的条件');
         }
     } else {
+        console.log('游戏已经存在，同步游戏信息')
         // 游戏已经存在,同步当前的游戏状态
-        // 1，角色选择阶段
-        // 2，游戏进行中阶段
-
+        var struct = {
+            state: game.state,
+            currentOperator: game.gameSeats[game.currentOperator].userId,
+            roomid: roomId,
+            numOfGames: roomInfo.numOfGames,
+            creator: roomInfo.creator,
+            gameType: roomInfo.gameType,
+            subGameType: roomInfo.subGameType,
+            playerNum: roomInfo.playerNum,
+            playRound: roomInfo.playRound,
+        };
+        struct.seats = [];
+        for (var i = 0; i < game.gameSeats.length; ++i) {
+            var seatData = game.gameSeats[i];
+            var sendingData = {
+                userId: seatData.userId,
+                ip: roomInfo.seats[i].ip,
+                coin: seatData.coin,
+                name: roomInfo.seats[i].name,
+                online: userMgr.isOnline(seatData.userId),
+                ready: roomInfo.seats[i].ready,
+                seatIndex: seatData.seatIndex,
+                chosedRole: seatData.chosedRole,
+                currentChessGirdIndex: seatData.moveStartChessGirdIndex, // 恢复现场时，是恢复到没走完之前的位置
+                occupyGround: seatData.occupyGround,
+                isBankrupted: seatData.isBankrupted,
+                lockDown: seatData.lockDown,
+            };
+            struct.seats.push(sendingData);
+        }
+        // userMgr.sendMsg(userId, 'game_sync_push', struct); // 单人恢复游戏
+        userMgr.broacastInRoom('game_sync_push', struct, userId, true); // 游戏中所有人一起恢复
     }
 };
 //开始新的一局
@@ -58,7 +88,7 @@ exports.begin = function (roomId) {
         roomInfo: roomInfo, // 房间信息
         nextOperator: roomInfo.nextOperator, // 下局起手玩家
         gameSeats: [], // 玩家在游戏中的信息
-        currentOperator: 0, // 当前在操作的玩家
+        currentOperator: 0, // 当前在操作的玩家座位号
 
         alreadyChosedRoleCounter: 0,//已经选择角色的玩家数量
     };
@@ -77,6 +107,8 @@ exports.begin = function (roomId) {
         data.occupyGround = [];// 玩家在游戏过程中购得的土地
         data.isBankrupted = false; // 是否破产了
         data.lockDown = 0; // 锁定操作轮数剩余
+        data.playerStatus = 'stay';//这个字段暂时没有逻辑意义，只为了让人明白点在干啥，玩家角色状态 TODO 在玩家正在走时，还没到目的地。会产生终点状态 'moving'
+        data.moveStartChessGirdIndex = 0; // 玩家移动是的启动位置
         // 为了快速定位游戏内玩家,这样在存下
         gameSeatsOfUsers[data.userId] = data;
         // 同步下在进入房间时尚未初始化的参数--棋盘位置
@@ -150,9 +182,9 @@ exports.choseRole = function (userId, roleid) {
         exports.playerTakeHander(game);
     }
 }
-// 玩家抵达目的地
-exports.arriveDestination = function (userId) {
-    var seatData = gameSeatsOfUsers[userId];
+// 玩家发起移动
+exports.moveTo = function (who, toWhere) {
+    var seatData = gameSeatsOfUsers[who];
     if (seatData == null) {
         console.log("玩家游戏数据没找到，选不了角色.");
         return;
@@ -163,11 +195,35 @@ exports.arriveDestination = function (userId) {
         console.log("游戏状态在playing才会产生玩家移动，而不是 game.state == " + game.state);
         return;
     }
+    var seatData = gameSeatsOfUsers[who];
+    if (seatData == null) {
+        console.log("玩家游戏数据没找到.");
+        return;
+    }
+    seatData.moveStartChessGirdIndex = seatData.currentChessGirdIndex;
+    seatData.currentChessGirdIndex = toWhere;
+    seatData.playerStatus = 'moving';
+}
+// 玩家抵达目的地
+exports.arriveDestination = function (userId) {
+    var seatData = gameSeatsOfUsers[userId];
+    if (seatData == null) {
+        console.log("玩家游戏数据没找到，选不了角色.");
+        return;
+    }
+    seatData.moveStartChessGirdIndex = seatData.currentChessGirdIndex;
+    seatData.playerStatus = 'stay';
+    // 游戏状态检查
+    var game = seatData.game;
+    if (game.state != "playing") {
+        console.log("游戏状态在playing才会产生玩家移动，而不是 game.state == " + game.state);
+        return;
+    }
     // 验证操作对象
     var currentOperator = game.currentOperator;
     var currentOprUser = game.gameSeats[currentOperator].userId;
     if (currentOprUser == userId) {
-        // 如果的确是我操作，则直接让下一个玩家操作
+        // 如果的确是我操作的，则直接让下一个玩家操作
         exports.moveToNextPlayer(game);
     } else {
         console.log('现在不是轮到该玩家操作');

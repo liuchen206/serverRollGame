@@ -22,7 +22,7 @@ exports.start = function (config, mgr) {
             };
 
             //通知房间内其它玩家，玩家掉线
-            userMgr.broacastInRoom('user_state_push', data, userId);
+            userMgr.broacastInRoom('user_net_state_push', data, userId);
 
             //清除玩家的在线信息
             userMgr.del(userId);
@@ -87,13 +87,13 @@ exports.start = function (config, mgr) {
                     online = userMgr.isOnline(rs.userId);
                 }
                 seats.push({
-                    userid: rs.userId,
+                    userId: rs.userId,
                     ip: rs.ip,
                     coin: rs.coin,
                     name: rs.name,
                     online: online,
                     ready: rs.ready,
-                    seatindex: i,
+                    seatIndex: i,
                     chosedRole: -1,
                     currentChessGirdIndex: rs.currentChessGirdIndex,
                     isBankrupted: false,
@@ -245,11 +245,13 @@ exports.start = function (config, mgr) {
             //     action: 'walk',
             //     gridX: 0,
             //     gridY: 0,
+            //     chessIndex: chessIndex,
             // }
             if (data.action == 'walk') {
                 // console.log('syncOBJAction', data.action)
                 data.userId = userId;
                 userMgr.broacastInRoom('syncOBJActionToOther', data, userId, false);
+                socket.gameMgr.moveTo(userId, data.chessIndex);
             }
         });
         // 玩家抵达消息

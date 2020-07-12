@@ -18,7 +18,7 @@ exports.start = function (account_config) {
     config = account_config;
     hallAddr = config.HALL_IP + ":" + config.HALL_CLIENT_PORT;
     app.listen(config.CLIENT_PORT);
-    console.log("账号服 监听端口为 " + config.CLIENT_PORT);
+    console.log("账号服 监听端口为 " + config.HALL_IP + ':' + config.CLIENT_PORT);
 }
 function send(res, ret) {
     var str = JSON.stringify(ret);

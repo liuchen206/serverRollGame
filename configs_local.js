@@ -9,7 +9,7 @@ var GAME_CONECT_PORT = 10000; // 长连接端口
 
 
 var ACCOUNT_PRI_KEY = "^&*#$%()@"; // 帐号服通讯私钥
-var ROOM_PRI_KEY = "~!@#$(*&^%$&";
+var ROOM_PRI_KEY = "~!@#$(*&^%$&"; // 大厅游戏服私钥
 
 var LOCAL_IP = 'localhost'; // 服务器不同服务之间交互地址
 
@@ -33,7 +33,7 @@ exports.account_server = function () {
 
         DEALDER_API_IP: LOCAL_IP,
         DEALDER_API_PORT: 12581,
-        VERSION: '20200406',
+        VERSION: '19891102',
         APP_WEB: 'http://????/????',
     };
 };
