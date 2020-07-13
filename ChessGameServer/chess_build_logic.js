@@ -55,6 +55,15 @@ exports.setReady = function (userId, callback) {
         struct.seats = [];
         for (var i = 0; i < game.gameSeats.length; ++i) {
             var seatData = game.gameSeats[i];
+
+            var syncChessGird = 0;
+            // 这是新增的判断，是为了处理。玩家已经开始走了。但是退出游戏，在回来。恢复玩家应该让他回退到刚刚丢筛子的位置重丢，而不是在已经走到的位置再丢
+            if (seatData.playerStatus == 'moving') {
+                // 正在移动中断线
+                syncChessGird = seatData.moveStartChessGirdIndex;
+            } else {
+                syncChessGird = seatData.currentChessGirdIndex;
+            }
             var sendingData = {
                 userId: seatData.userId,
                 ip: roomInfo.seats[i].ip,
@@ -64,7 +73,7 @@ exports.setReady = function (userId, callback) {
                 ready: roomInfo.seats[i].ready,
                 seatIndex: seatData.seatIndex,
                 chosedRole: seatData.chosedRole,
-                currentChessGirdIndex: seatData.moveStartChessGirdIndex, // 恢复现场时，是恢复到没走完之前的位置
+                currentChessGirdIndex: syncChessGird, // 恢复现场时，是恢复到没走完之前的位置
                 occupyGround: seatData.occupyGround,
                 isBankrupted: seatData.isBankrupted,
                 lockDown: seatData.lockDown,

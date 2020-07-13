@@ -145,6 +145,19 @@ exports.getUserRoom = function (userId) {
     }
     return null;
 };
+// 寻找一个没有开始的空闲房间
+exports.getUnStartRoom = function () {
+    for (var roomId in rooms) {
+        console.log('检查房间 ', roomId)
+        var roomInfo = rooms[roomId];
+        if (roomInfo.numOfGames > 0) {
+            continue;
+        } else {
+            return roomId;
+        }
+    }
+    return 0;
+}
 /**
  * 玩家是不是房间的房主
  */

@@ -137,3 +137,26 @@ app.get('/enter_room', function (req, res) {
         http.send(res, 0, "ok", { token: token });
     });
 });
+// 请求一个尚未开始游戏的房间
+app.get('/unstart_room', function (req, res) {
+    var sign = req.query.sign;
+    if (sign == null) {
+        http.send(res, 1, "invalid parameters");
+        return;
+    }
+    var serverType = req.query.serverType;
+    console.log('查询尚未开始游戏房间房间，房间游戏类型', serverType)
+    var md5 = crypto.md5(serverType + config.ROOM_PRI_KEY);
+    if (md5 != sign) {
+        http.send(res, 2, "sign check failed.");
+        return;
+    }
+    var roomId = roomMgr.getUnStartRoom();
+    console.log('寻找房间到 ', roomId)
+
+    if (roomId > 0) {
+        http.send(res, 0, "ok", { roomId: roomId });
+    } else {
+        http.send(res, -1, "没有合适房间", { roomId: roomId });
+    }
+});

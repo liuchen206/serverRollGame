@@ -198,3 +198,33 @@ exports.enterRoom = function (userId, name, roomId, fnCallback) {
         }
     });
 };
+//匹配房间 
+exports.matchingRoom = function (serverType, fnCallback) {
+    // 构建进入房间数据
+    var reqdata = {
+        serverType: serverType,
+        sign: '',
+    };
+    reqdata.sign = crypto.md5(serverType + config.ROOM_PRI_KEY); // 游戏内签名
+    var serverinfo = chooseServer(serverType);
+    if (!serverinfo) {
+        console.log('没有找到任何服务器信息，', serverType);
+        fnCallback(-1, null);
+        return;
+    }
+    http.get(serverinfo.ip, serverinfo.httpPort, "/unstart_room", reqdata, function (ret, data) {
+        if (ret) {
+            if (data.errcode == 0) {
+                console.log('matchingRoom 找到房间', serverType, data.roomId)
+                fnCallback(0, {
+                    roomId: data.roomId,
+                });
+            } else {
+                // console.log(data.errmsg);
+                fnCallback(data.errcode, null);
+            }
+        } else {
+            fnCallback(-1, null);
+        }
+    });
+}

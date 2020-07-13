@@ -190,7 +190,7 @@ app.get('/create_private_room', function (req, res) {
         })
     });
 });
-//
+// 加入房间
 app.get('/enter_private_room', function (req, res) {
     var data = req.query;
     var roomId = data.roomid;
@@ -223,6 +223,38 @@ app.get('/enter_private_room', function (req, res) {
                 http.send(res, 0, "ok", ret);
             } else {
                 http.send(res, errcode, "进入房间失败.");
+            }
+        });
+    });
+});
+
+// 匹配房间
+app.get('/matching_private_room', function (req, res) {
+    var data = req.query;
+    var gameType = data.gameType;
+    if (gameType == null) {
+        http.send(res, -1, "没有传送游戏类型参数.");
+        return;
+    }
+    if (!check_account(req, res)) {
+        http.send(res, -1, "账户和签名信息错误");
+        return;
+    }
+    var account = data.account;
+    db.get_user_data(account, function (data) {
+        if (data == null) {
+            http.send(res, -1, "无法找到玩家数据");
+            return;
+        }
+        //匹配房间
+        room_service.matchingRoom(gameType, function (errcode, matchInfo) {
+            if (matchInfo) {
+                var ret = {
+                    roomId: matchInfo.roomId,
+                };
+                http.send(res, 0, "ok", ret);
+            } else {
+                http.send(res, errcode, "匹配房间失败.");
             }
         });
     });
