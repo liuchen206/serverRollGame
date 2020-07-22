@@ -4,8 +4,10 @@ var Server_IP = 'localhost'; // 本地开发测试
 var ACCOUNT_PORT = 9000; // 账号服服务端口
 var HALL_CLIENT_PORT = 9001; // 大厅服与帐号服服务端口
 var HALL_ROOM_PORT = 9002; // 大厅与游戏服服务端口
-var GAME_ROOM_PORT = 9003; // 游戏服与大厅服务端口
-var GAME_CONECT_PORT = 10000; // 长连接端口
+var GAME_CHESS_ROOM_PORT = 9003; // 棋盘游戏服与大厅服务端口
+var GAME_RPG_ROOM_PORT = 9004; // 角色扮演游戏服与大厅服务端口
+var GAME_CHESS_CONECT_PORT = 10000; // 棋盘长连接端口
+var GAME_RPG_CONECT_PORT = 11000; // 角色扮演长连接端口
 
 
 var ACCOUNT_PRI_KEY = "^&*#$%()@"; // 帐号服通讯私钥
@@ -59,7 +61,7 @@ exports.chess_game_server = function () {
         SERVER_TYPE: "Chess_Build",
         SERVER_ID: "001_chess",
         //给大厅服联系游戏服的HTTP端口号
-        HTTP_PORT: GAME_ROOM_PORT,
+        HTTP_PORT: GAME_CHESS_ROOM_PORT,
         //HTTP TICK的间隔时间，用于向大厅服汇报情况
         HTTP_TICK_TIME: 5000,
         //联系大厅服IP
@@ -72,6 +74,29 @@ exports.chess_game_server = function () {
 
         //暴露给客户端的长连接端口
         CLIENT_IP: Server_IP,
-        CLIENT_PORT: GAME_CONECT_PORT,
+        CLIENT_PORT: GAME_CHESS_CONECT_PORT,
+    };
+};
+
+//rpg游戏服配置
+exports.rpg_game_server = function () {
+    return {
+        SERVER_TYPE: "Rpg_Battle",
+        SERVER_ID: "001_rpg",
+        //给大厅服联系游戏服的HTTP端口号
+        HTTP_PORT: GAME_RPG_ROOM_PORT,
+        //HTTP TICK的间隔时间，用于向大厅服汇报情况
+        HTTP_TICK_TIME: 5000,
+        //联系大厅服IP
+        HALL_IP: LOCAL_IP,
+        FOR_HALL_IP: LOCAL_IP,
+        //联系大厅服端口
+        HALL_PORT: HALL_ROOM_PORT,
+        //与大厅服协商好的通信加密KEY
+        ROOM_PRI_KEY: ROOM_PRI_KEY,
+
+        //暴露给客户端的长连接端口
+        CLIENT_IP: Server_IP,
+        CLIENT_PORT: GAME_RPG_CONECT_PORT,
     };
 };

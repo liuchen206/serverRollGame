@@ -259,3 +259,129 @@ app.get('/matching_private_room', function (req, res) {
         });
     });
 });
+
+/**
+ * rpg 新游戏消息
+ */
+/**
+ * 服务器接受客户端创建房间请求
+ */
+app.get('/create_private_room_for_RPG', function (req, res) {
+    //验证参数合法性
+    var data = req.query;
+    //验证玩家身份
+    if (!check_account(req, res)) {
+        http.send(res, 1, "请求信息中没有账户和签名");
+        return;
+    }
+    var account = data.account;
+    data.account = null;
+    data.sign = null;
+    var conf = data.conf;
+    // 获取玩家数据
+    db.get_user_data(account, function (data) {
+        if (data == null) {
+            http.send(res, 1, "没有读取到玩家账户信息");
+            return;
+        }
+        // 成功读取到玩家数据
+        var userId = data.uid;
+        var name = data.name;
+        console.log('玩家发起 rpg 创建房间', userId, name, JSON.parse(conf).gameType)
+        // 查找玩家已经存在的房间信息
+        db.get_room_id_of_user(userId, function (roomId) {
+            console.log('查询玩家  roomId', userId, roomId)
+            if (roomId != null) {
+                // 已经有房间了，无法重新创建房间
+                http.send(res, -1, "已经在房间" + roomId, null);
+                return;
+            }
+            // 正式创建房间
+            room_service.createRoomForRPG(account, userId, conf, function (err, roomId) {
+                if (err == 0 && roomId != null) {
+                    // 创建成功 立即 进入房间
+                    console.log('创建成功 立即 开始进入房间')
+                    room_service.enterRoom_rpg(userId, name, roomId, function (errcode, enterInfo) {
+                        if (enterInfo) {
+                            var ret = {
+                                roomid: roomId,
+                                ip: enterInfo.ip,
+                                port: enterInfo.port,
+                                token: enterInfo.token,
+                                time: Date.now()
+                            };
+                            ret.sign = crypto.md5(ret.roomid + ret.token + ret.time + config.ROOM_PRI_KEY);
+                            http.send(res, 0, "ok", ret);
+                            console.log('进入房间 成功')
+                        } else {
+                            if (errcode == -2) {
+                                http.send(res, errcode, "读取房间网络地址失败.", errcode);
+                            } else {
+                                http.send(res, errcode, "进入房间失败，原因不明.", errcode);
+                            }
+                        }
+                    });
+                } else {
+                    if (err == 101) {
+                        http.send(res, err, "没有成功选中游戏服.");
+                    } else if (err == 102) {
+                        http.send(res, err, "没有得到游戏服响应.");
+                    } else if (err == 103) {
+                        http.send(res, err, "没有成功查询宝石数量.");
+                    } else if (err == 104) {
+                        http.send(res, err, "创建房间时没有正确的参数.");
+                    } else if (err == 105) {
+                        http.send(res, err, "游戏服验证签名失败.");
+                    } else if (err == 106) {
+                        http.send(res, err, "游戏配置数据错误.");
+                    } else if (err == 107) {
+                        http.send(res, err, "宝石数量不足.");
+                    } else if (err == 108) {
+                        http.send(res, err, "房间数据写入数据库失败.");
+                    } else {
+                        http.send(res, err, "未知原因.");
+                    }
+                }
+            });
+
+        })
+    });
+});
+// 加入房间
+app.get('/enter_private_room_rpg', function (req, res) {
+    console.log('尝试进入 rpg')
+    var data = req.query;
+    var roomId = data.roomid;
+    if (roomId == null) {
+        http.send(res, -1, "没有传送房间号.");
+        return;
+    }
+    if (!check_account(req, res)) {
+        return;
+    }
+    var account = data.account;
+    db.get_user_data(account, function (data) {
+        if (data == null) {
+            http.send(res, -1, "无法找到玩家数据");
+            return;
+        }
+        var userId = data.uid;
+        var name = data.name;
+        //进入房间
+        room_service.enterRoom_rpg(userId, name, roomId, function (errcode, enterInfo) {
+            if (enterInfo) {
+                var ret = {
+                    roomid: roomId,
+                    ip: enterInfo.ip,
+                    port: enterInfo.port,
+                    token: enterInfo.token,
+                    time: Date.now()
+                };
+                ret.sign = crypto.md5(roomId + ret.token + ret.time + config.ROOM_PRI_KEY);
+                http.send(res, 0, "ok", ret);
+            } else {
+                http.send(res, errcode, "进入房间失败.");
+            }
+        });
+    });
+});

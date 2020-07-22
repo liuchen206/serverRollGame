@@ -1,4 +1,3 @@
-
 var tokenMgr = require('./tokenmgr');
 var userMgr = require('./usermgr');
 var roomMgr = require('./roommgr');
@@ -17,7 +16,7 @@ exports.start = function (config, mgr) {
                 return;
             }
             var data = {
-                userid: userId,
+                userId: userId,
                 online: false
             };
 
@@ -139,7 +138,7 @@ exports.start = function (config, mgr) {
                 return;
             }
             socket.gameMgr.setReady(userId);
-            userMgr.broacastInRoom('user_ready_push', { userid: userId, ready: true }, userId, true);
+            userMgr.broacastInRoom('user_ready_push', { userId: userId, ready: true }, userId, true);
         });
         //解散房间，在游戏未开始阶段，房主可以通过此消息立即解散房间，不需要其他玩家同意
         socket.on('dispress', function (data) {

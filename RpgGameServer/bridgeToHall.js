@@ -1,13 +1,20 @@
 var crypto = require('../utils/crypto');
 var express = require('express');
-var tokenMgr = require("./tokenmgr");
 var http = require('../utils/http');
+var tokenMgr = require("./tokenmgr");
 var roomMgr = require("./roommgr");
 
 var app = express();
 var config = null;
-
 var gameServerInfo = null;
+app.all('*', function (req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "X-Requested-With");
+    res.header("Access-Control-Allow-Methods", "PUT,POST,GET,DELETE,OPTIONS");
+    res.header("X-Powered-By", ' 3.2.1');
+    res.header("Content-Type", "application/json;charset=utf-8");
+    next();
+});
 exports.start = function ($config) {
     config = $config;
     gameServerInfo = {
@@ -20,16 +27,8 @@ exports.start = function ($config) {
     };
     setInterval(update, 1000);
     app.listen(config.HTTP_PORT, config.FOR_HALL_IP);
-    console.log("棋盘 游戏服 监听地址 " + config.FOR_HALL_IP + ":" + config.HTTP_PORT);
+    console.log("rpg 游戏服 监听地址 " + config.FOR_HALL_IP + ":" + config.HTTP_PORT);
 };
-app.all('*', function (req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "X-Requested-With");
-    res.header("Access-Control-Allow-Methods", "PUT,POST,GET,DELETE,OPTIONS");
-    res.header("X-Powered-By", ' 3.2.1');
-    res.header("Content-Type", "application/json;charset=utf-8");
-    next();
-});
 /**
  * 向大厅服务器同步房间信息
  */
@@ -52,14 +51,9 @@ function update() {
                 lastTickTime = 0;
             }
         });
-
-        // var mem = process.memoryUsage();
-        // var format = function (bytes) {
-        //     return (bytes / 1024 / 1024).toFixed(2) + 'MB';
-        // };
-        //console.log('Process: heapTotal '+format(mem.heapTotal) + ' heapUsed ' + format(mem.heapUsed) + ' rss ' + format(mem.rss)); // 内存监控
     }
 }
+
 // 创建一个新房间
 app.get('/create_room', function (req, res) {
     var userId = parseInt(req.query.userid);
@@ -77,8 +71,9 @@ app.get('/create_room', function (req, res) {
         http.send(res, 105, "sign check failed.");
         return;
     }
-
     conf = JSON.parse(conf);
+    console.log('接受大厅创建房间', conf.gameType)
+    // return http.send(res, -1, "测试中.");
     roomMgr.createRoom(userId, conf, gems, serverIp, config.CLIENT_PORT, function (errcode, roomId) {
         if (errcode != 0 || roomId == null) {
             http.send(res, errcode, "create failed.");
@@ -87,7 +82,6 @@ app.get('/create_room', function (req, res) {
         }
     });
 });
-
 // 游戏服是否正常启动
 app.get('/is_room_runing', function (req, res) {
     var roomId = req.query.roomid;
@@ -136,27 +130,4 @@ app.get('/enter_room', function (req, res) {
         var token = tokenMgr.createToken(userId, 5000);
         http.send(res, 0, "ok", { token: token });
     });
-});
-// 请求一个尚未开始游戏的房间
-app.get('/unstart_room', function (req, res) {
-    var sign = req.query.sign;
-    if (sign == null) {
-        http.send(res, 1, "invalid parameters");
-        return;
-    }
-    var serverType = req.query.serverType;
-    console.log('查询尚未开始游戏房间房间，房间游戏类型', serverType)
-    var md5 = crypto.md5(serverType + config.ROOM_PRI_KEY);
-    if (md5 != sign) {
-        http.send(res, 2, "sign check failed.");
-        return;
-    }
-    var roomId = roomMgr.getUnStartRoom();
-    console.log('寻找房间到 ', roomId)
-
-    if (roomId > 0) {
-        http.send(res, 0, "ok", { roomId: roomId });
-    } else {
-        http.send(res, -1, "没有合适房间", { roomId: roomId });
-    }
 });

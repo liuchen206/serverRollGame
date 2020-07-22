@@ -101,7 +101,7 @@ exports.begin = function (roomId) {
 
         alreadyChosedRoleCounter: 0,//已经选择角色的玩家数量
     };
-    roomInfo.numOfGames++; // 游戏进行了几句
+    roomInfo.numOfGames++; // 游戏进行了几局
     // 构建玩家游戏数据
     for (var i = 0; i < roomInfo.playerNum; ++i) {
         console.log('构建游戏玩家数据', i, seats[i].userId)
@@ -120,8 +120,6 @@ exports.begin = function (roomId) {
         data.moveStartChessGirdIndex = 0; // 玩家移动是的启动位置
         // 为了快速定位游戏内玩家,这样在存下
         gameSeatsOfUsers[data.userId] = data;
-        // 同步下在进入房间时尚未初始化的参数--棋盘位置
-        userMgr.broacastInRoom('game_update_chessIndex_push', { userId: data.userId, currentChessGirdIndex: data.currentChessGirdIndex }, roomInfo.creator, true);
     }
     console.log('game 中游戏对象 0', game.gameSeats[0].userId)
     console.log('game 中游戏对象 1', game.gameSeats[1].userId)
