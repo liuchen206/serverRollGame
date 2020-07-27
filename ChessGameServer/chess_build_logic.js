@@ -262,7 +262,9 @@ exports.playerTakeHander = function (game) {
     // console.log('座位接管操作', game.currentOperator)
     var uid = userData.userId;
     userMgr.broacastInRoom('game_player_take_heander_push', { userId: uid, lockDown: userData.lockDown }, uid, true);
-    userData.lockDown -= 1; // 所以这个值可能是负数，客户端只判断锁定轮数是否大于零即可
+    if (userData.lockDown > 0) {
+        userData.lockDown -= 1; // 所以这个值可最小为0，客户端只判断锁定轮数是否大于零即可
+    }
 }
 // 玩家购得土地
 exports.playerBuyGround = function (whoBuy, buyWhat, buyWhere) {
@@ -396,5 +398,6 @@ exports.lockDown = function (who, lockTimes) {
         console.log("玩家游戏数据没找到");
         return;
     }
+    console.log('锁定轮数', lockTimes)
     seatData.lockDown = lockTimes;
 }

@@ -268,7 +268,7 @@ exports.start = function (config, mgr) {
             // var data = {
             //     userId: uid,
             // }
-            // console.log('arriveDestination', userId, data.userId)
+            console.log('arriveDestination', userId, data.userId, data.fromWhere)
             socket.gameMgr.arriveDestination(socket.userId);
         });
         // 玩家购得土地
@@ -323,7 +323,7 @@ exports.start = function (config, mgr) {
             }
             // who: gameSettingIns.uid, 锁定谁
             // lockTimes: 2, 锁定几个回合
-            console.log('lockDown', data.lockTimes)
+            // console.log('lockDown', data.lockTimes)
             socket.gameMgr.lockDown(data.who, data.lockTimes);
         });
 
