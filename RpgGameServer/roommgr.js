@@ -47,12 +47,10 @@ var creatingRooms = {};
 exports.createRoom = function (creator, roomConf, gems, ip, port, callback) {
     // gameType: 'Rpg_Battle', // 棋盘经营
     // subGameType: "map_forest", // 子玩法类型
-    // playRound: 1, // 总共玩几盘
     // playerNum: 2,//玩家人数
     // 参数检查
     if (roomConf.subGameType == null
         || roomConf.gameType == null
-        || roomConf.playRound == null
         || roomConf.playerNum == null) {
         callback(106, null); // 给你参数不够
         return;
@@ -80,14 +78,12 @@ exports.createRoom = function (creator, roomConf, gems, ip, port, callback) {
                     // 构建房间信息
                     var roomInfo = {
                         id: roomId,
-                        numOfGames: 0, //玩到第几局
                         createTime: createTime, // 房间创建时间
                         seats: [], // 玩家数据
                         creator: creator, // 房间创建者
                         gameType: roomConf.gameType, // 游戏类型
                         subGameType: roomConf.subGameType, // 子游戏类型
                         playerNum: roomConf.playerNum, // 开始游戏的玩家数量
-                        playRound: roomConf.playRound, // 总共玩几盘
                         gameMgr: null, // 游戏逻辑脚本
                         dr: null,// 游戏发起解散数据
                     };
@@ -128,14 +124,12 @@ function constructRoomFromDb(dbdata) {
     var roomConf = JSON.parse(dbdata.baseInfo);
     var roomInfo = {
         id: dbdata.roomId,
-        numOfGames: dbdata.numOfGames, //玩到第几局
         createTime: dbdata.create_time, // 房间创建时间
         seats: [], // 玩家数据
         creator: roomConf.creator, // 房间创建者
         gameType: roomConf.gameType, // 游戏类型
         subGameType: roomConf.subGameType, // 子游戏类型
         playerNum: roomConf.playerNum, // 开始游戏的玩家数量
-        playRound: roomConf.playRound, // 总共玩几盘
         gameMgr: null,
     };
 

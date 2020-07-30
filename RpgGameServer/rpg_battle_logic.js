@@ -20,10 +20,14 @@ exports.closeGame = function (userId, delayTime) {
         return;
     }
     if (games[roomId]) {
+        // console.log('删除房间', roomId, '玩家总数', roomInfo.seats.length)
         var game = games[roomId];
         for (var i = 0; i < roomInfo.seats.length; ++i) {
             var sd = game.gameSeats[i];
-            delete gameSeatsOfUsers[sd.userId];
+            if (sd) {// roommgr 是通过玩家数量构建的数据，可能存在玩家没有完全加入的情况（也就是数据有空的）
+                // console.log('删除座上玩家', sd.userId)
+                delete gameSeatsOfUsers[sd.userId];
+            }
         }
         delete games[roomId];
     }
@@ -46,66 +50,123 @@ exports.setReady = function (userId, callback) {
     }
     // 对房间中我的位置信息更新我的准备状态
     roomMgr.setReady(userId, true);
-
-    // 游戏相关逻辑
+    // 派发驱动指示
     var game = games[roomId];
-    if (game == null) {// 游戏未创建
-        // 检查准备情况
-        var bingoCounter = 0;
-        for (var i = 0; i < roomInfo.seats.length; ++i) {
-            var s = roomInfo.seats[i];
-            if (s.ready == true && userMgr.isOnline(s.userId) == true) {
-                // 准备好了并且在线的视为等待开始游戏了
-                bingoCounter++;
-            }
-        }
-        //人到齐了，并且都准备好了，则开始新的一局
-        console.log("rpg 有几个人准备好了 ", bingoCounter, "需要几人 ", roomInfo.playerNum);
-        if (bingoCounter == roomInfo.playerNum) {
-            exports.begin(roomId);
-        } else {
-            console.log('人数不满足开始游戏的条件');
-        }
-    } else {
-
+    if (!game) {
+        console.log('玩家都已经准备了，却没有游戏数据')
+        return;
     }
+    exports.setDriveClient(roomId);
+    userMgr.sendMsg(userId, 'driveClientSet', { userId: game.driveClientId });
 };
-//开始新的一局
-exports.begin = function (roomId) {
+// 设置驱动客户端
+exports.setDriveClient = function (roomId) {
+    var game = games[roomId];
+    if (!game) {
+        console.log('没有找到游戏，无法设置驱动客户端')
+        return false;
+    }
+    // 已经设置完毕且正常在线，不需要重复设置
+    if (game.driveClientId > 0) {
+        if (userMgr.isOnline(game.driveClientId) == true) {
+            return true;
+        }
+    }
+    // 选择一个在线的客户端座位驱动
+    for (var index = 0; index < game.gameSeats.length; index++) {
+        var seatData = game.gameSeats[index];
+        if (userMgr.isOnline(seatData.userId) == true) {
+            game.driveClientId = seatData.userId;
+            userMgr.broacastInRoom('driveClientSet', { userId: game.driveClientId }, game.driveClientId, true);
+            return true;
+        }
+    }
+    game.driveClientId = 0;
+    return false;
+}
+// 添加玩家
+exports.addPlayerInGame = function (userId, userData) {
+    // 玩家有没有房间
+    var roomId = roomMgr.getUserRoom(userId);
+    if (roomId == null) {
+        return;
+    }
+    // 房间是不是有效
     var roomInfo = roomMgr.getRoom(roomId);
     if (roomInfo == null) {
         return;
     }
-    var seats = roomInfo.seats;
+    // 更新相关逻辑
+    var game = games[roomId];
+    if (!game) { // 如果没有创建及时创建一个游戏
+        exports.makeGame(roomId);
+        game = games[roomId];
+    }
+    // 构建玩家游戏数据
+    console.log('添加玩家', userData.userId, '到游戏座位', userData.seatIndex, '房间', roomId)
+    var data = game.gameSeats[userData.seatIndex] = userData;
+    data.game = game;
+    // 为了快速定位游戏内玩家,这样在存下
+    gameSeatsOfUsers[data.userId] = data;
+}
+// 玩家数据更新
+exports.playerDataUpdate = function (userId, data, callback) {
+    // 玩家有没有房间
+    var roomId = roomMgr.getUserRoom(userId);
+    if (roomId == null) {
+        return;
+    }
+    // 房间是不是有效
+    var roomInfo = roomMgr.getRoom(roomId);
+    if (roomInfo == null) {
+        return;
+    }
+    // 更新相关逻辑
+    var game = games[roomId];
+    if (game == null) {// 游戏未创建
+        console.log('没有游戏没有进行')
+    } else {
+        var userData = gameSeatsOfUsers[userId];
+        console.log('更新玩家', userData.userId, '到位置', data.gridX, data.gridY)
+        if (data.action == 'girdXYSync') { // 请求立即同步
+            userData.girdX = data.gridX;
+            userData.girdY = data.gridY;
+
+            // 玩家准备完毕之后，向玩家推送玩家游戏状态
+            var ret = [];
+            for (var index = 0; index < game.gameSeats.length; index++) {
+                var seatData = game.gameSeats[index];
+                ret.push({
+                    userId: seatData.userId,
+                    girdX: seatData.girdX,
+                    girdY: seatData.girdY,
+                })
+            }
+            userMgr.sendMsg(userId, 'syncRpgPlayers', ret);
+        }
+        if (data.action == 'walk') { // 寻路移动
+            userData.girdX = data.gridX;
+            userData.girdY = data.gridY;
+        }
+    }
+};
+//开始新的一局
+exports.makeGame = function (roomId) {
+    var roomInfo = roomMgr.getRoom(roomId);
+    if (roomInfo == null) {
+        return;
+    }
     // 游戏运行环境
     var game = {
         state: "idle", // 游戏进行状态
         roomInfo: roomInfo, // 房间信息
         gameSeats: [], // 玩家在游戏中的信息
+        driveClientId: 0,
 
     };
-    roomInfo.numOfGames++; // 游戏进行了几局
-    // 构建玩家游戏数据
-    for (var i = 0; i < roomInfo.playerNum; ++i) {
-        console.log('构建游戏玩家数据', i, seats[i].userId)
-        var data = game.gameSeats[i] = {}; // 初始化一个座位上的玩家信息
-        // game.gameSeats.push(data);
-        data.game = game;
-        data.seatIndex = i;
-        data.userId = seats[i].userId;
-        data.currentGirdIndex = seats[i].currentGirdIndex; // 棋盘上的位置
-        data.chosedRole = i; // 选择的角色--- 这是创建房间时没有的变量，创建游戏时新加入的
-        data.currentHp = 100;
-        data.currentMp = 100;
-        data.maxHp = 100;
-        data.maxMp = 100;
-        // 为了快速定位游戏内玩家,这样在存下
-        gameSeatsOfUsers[data.userId] = data;
-    }
     // 保存游戏对局数据
     games[roomId] = game;
 
     // 通知游戏循环开始
     game.state = "playing";
-    userMgr.broacastInRoom('game_rpg_round_playing_push', { errcode: 0, errmsg: "DoIt" }, roomInfo.creator, true);
 };

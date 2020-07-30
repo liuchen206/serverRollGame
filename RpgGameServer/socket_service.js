@@ -101,12 +101,13 @@ exports.start = function (config, mgr) {
                     ready: rs.ready,
                     seatIndex: i,
                     // 下面数据应该是 玩家进入房间时上报，但现在只设置默认值
-                    currentGirdIndex: rs.currentGirdIndex, // 玩家当前的地图格子
                     chosedRole: i, // 玩家选择的角色
                     currentHp: 100, // 当前血量
                     currentMp: 100, // 当前蓝量
                     maxHp: 100, // 最大血量
                     maxMp: 100, // 最大蓝量
+                    girdX: -1, // 所处位置x
+                    girdY: -1, // 所处位置y
                 });
 
                 if (userId == rs.userId) {
@@ -120,12 +121,10 @@ exports.start = function (config, mgr) {
                 serverType: config.SERVER_TYPE,
                 data: {
                     roomid: roomInfo.id,
-                    numOfGames: roomInfo.numOfGames, //玩到第几局
                     creator: roomInfo.creator, // 房间创建者
                     gameType: roomInfo.gameType, // 游戏类型
                     subGameType: roomInfo.subGameType, // 子游戏类型
                     playerNum: roomInfo.playerNum, // 开始游戏的玩家数量
-                    playRound: roomInfo.playRound, // 总共玩几盘
                     seats: seats, // 游戏内的玩家数据
                 }
             };
@@ -134,8 +133,8 @@ exports.start = function (config, mgr) {
             userMgr.broacastInRoom('new_rpg_user_comes_push', userData, userId);
             //为本次连接设置游戏逻辑脚本
             socket.gameMgr = roomInfo.gameMgr;
-            //玩家上线，直接设置为TRUE. 取消了玩家手动点准备的功能
-            // socket.gameMgr.setReady(userId);
+            //玩家连接后，将玩家加入游戏
+            socket.gameMgr.addPlayerInGame(userId, userData);
 
             // TODO 处理一进来就有发起解散房间的情况
             if (roomInfo.dr != null) {
@@ -173,14 +172,23 @@ exports.start = function (config, mgr) {
             //     dir: 0,
             // }
             // var cmd = {
-            //     action: 'girdSet',
+            //     action: 'girdXYSync',
             //     gridX: 0,
             //     gridY: 0,
             // }
-            if (data.action == 'walk' || data.action == 'walkByDir') {
+            if (data.action == 'walk' || data.action == 'walkByDir' || data.action == 'girdXYSync') {
                 // console.log('syncOBJAction', data.action)
                 data.userId = userId;
                 userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
+            } else {
+                console.log('未识别的同步指令', data.action)
+            }
+            // 部分指令的特殊操作
+            if (data.action == 'girdXYSync') {
+                socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
+            }
+            if (data.action == 'walk') {
+                socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
             }
         });
 

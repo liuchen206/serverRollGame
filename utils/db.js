@@ -405,8 +405,6 @@ exports.create_room_rpg = function (roomId, conf, ip, port, create_time, callbac
     var baseInfo = JSON.stringify({
         gameType: conf.gameType, // 游戏类型
         subGameType: conf.subGameType, // 子游戏类型
-        playerNum: conf.playerNum, // 开始游戏的玩家数量
-        playRound: conf.playRound, // 总共玩几盘
         creator: conf.creator, // 房间创建者
     });
     sql = sql.format(roomId, baseInfo, ip, port, create_time);
