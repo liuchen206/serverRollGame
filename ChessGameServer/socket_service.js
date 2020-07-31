@@ -242,8 +242,8 @@ exports.start = function (config, mgr) {
             }
             // var cmd = {
             //     action: 'walk',
-            //     gridX: 0,
-            //     gridY: 0,
+            //     girdX: 0,
+            //     girdY: 0,
             //     chessIndex: chessIndex,
             // }
             if (data.action == 'walk') {

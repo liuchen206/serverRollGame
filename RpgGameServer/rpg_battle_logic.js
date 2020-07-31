@@ -4,6 +4,7 @@ var db = require("../utils/db");
 var crypto = require("../utils/crypto");
 var games = {}; // 所有对局游戏信息
 var gameSeatsOfUsers = {};// 快速定位游戏内玩家
+var gameMonstersMap = {};// 快速定位游戏内副本内的怪物
 
 
 // 关闭游戏
@@ -56,11 +57,18 @@ exports.setReady = function (userId, callback) {
         console.log('玩家都已经准备了，却没有游戏数据')
         return;
     }
-    exports.setDriveClient(roomId);
-    userMgr.sendMsg(userId, 'driveClientSet', { userId: game.driveClientId });
+    // 没进入一个玩家尝试设置一次驱动并通知结果给进来的玩家
+    var result = exports.isDriveClientRunning(roomId);
+    if (result == true) {
+        userMgr.sendMsg(userId, 'driveClientSet', { userId: game.driveClientId });
+    } else {
+        exports.setDriveClient(roomId);
+    }
+    // 给刚进来的玩家通知怪物信息
+    userMgr.sendMsg(userId, 'monsterSync', game.gameMonsters);
 };
-// 设置驱动客户端
-exports.setDriveClient = function (roomId) {
+// 设法已经设置了客户端驱动
+exports.isDriveClientRunning = function (roomId) {
     var game = games[roomId];
     if (!game) {
         console.log('没有找到游戏，无法设置驱动客户端')
@@ -71,6 +79,20 @@ exports.setDriveClient = function (roomId) {
         if (userMgr.isOnline(game.driveClientId) == true) {
             return true;
         }
+    }
+    return false;
+}
+// 设置驱动客户端
+exports.setDriveClient = function (roomId) {
+    var re = exports.isDriveClientRunning(roomId);
+    if (re == true) {
+        console.log('无需设置')
+        return;
+    }
+    var game = games[roomId];
+    if (!game) {
+        console.log('没有找到游戏，无法设置驱动客户端')
+        return false;
     }
     // 选择一个在线的客户端座位驱动
     for (var index = 0; index < game.gameSeats.length; index++) {
@@ -83,6 +105,61 @@ exports.setDriveClient = function (roomId) {
     }
     game.driveClientId = 0;
     return false;
+}
+//
+exports.monsterWalk = function (userId, data) {
+    // 玩家有没有房间
+    var roomId = roomMgr.getUserRoom(userId);
+    if (roomId == null) {
+        return false;
+    }
+    var game = games[roomId];
+    if (game) {
+        // 确认是选中的驱动
+        if (data.userId == game.driveClientId) {
+            // 找到对应怪物数据
+            console.log('怪物移动', data.monsterId, 'to', data.girdX, data.girdY);
+            var monData = gameMonstersMap[data.monsterId];
+            monData.girdX = data.girdX;
+            monData.girdY = data.girdY;
+            return true;
+        } else {
+            console.log('不是选中的驱动客户端的请求')
+            return false;
+        }
+    } else {
+        console.log('无法添加怪物，没有找到游戏')
+        return false;
+    }
+}
+// 驱动客户端创建怪物
+exports.createMonster = function (data) {
+    // 玩家有没有房间
+    var roomId = roomMgr.getUserRoom(data.driveId);
+    if (roomId == null) {
+        return false;
+    }
+    var game = games[roomId];
+    if (game) {
+        console.log('服务器设置的驱动', game.driveClientId, '传送逻辑的玩家', data.driveId)
+        if (game.driveClientId == data.driveId) {
+            var monData = gameMonstersMap[data.id];
+            if (monData) {
+                monData = data;
+            } else {
+                game.gameMonsters.push(data);
+                gameMonstersMap[data.id] = data;
+            }
+            console.log('添加怪物', data.id)
+        } else {
+            console.log('该玩家不是服务器选中的驱动客户端')
+            return false;
+        }
+    } else {
+        console.log('无法添加怪物，没有找到游戏')
+        return false;
+    }
+    return true;
 }
 // 添加玩家
 exports.addPlayerInGame = function (userId, userData) {
@@ -125,31 +202,37 @@ exports.playerDataUpdate = function (userId, data, callback) {
     var game = games[roomId];
     if (game == null) {// 游戏未创建
         console.log('没有游戏没有进行')
+        return false;
     } else {
         var userData = gameSeatsOfUsers[userId];
-        console.log('更新玩家', userData.userId, '到位置', data.gridX, data.gridY)
+        console.log('更新玩家', userData.userId, '到位置', data.girdX, data.girdY)
         if (data.action == 'girdXYSync') { // 请求立即同步
-            userData.girdX = data.gridX;
-            userData.girdY = data.gridY;
-
-            // 玩家准备完毕之后，向玩家推送玩家游戏状态
-            var ret = [];
-            for (var index = 0; index < game.gameSeats.length; index++) {
-                var seatData = game.gameSeats[index];
-                ret.push({
-                    userId: seatData.userId,
-                    girdX: seatData.girdX,
-                    girdY: seatData.girdY,
-                })
-            }
-            userMgr.sendMsg(userId, 'syncRpgPlayers', ret);
+            userData.girdX = data.girdX;
+            userData.girdY = data.girdY;
+            exports.syncRpgPlayers(userId, game);
         }
         if (data.action == 'walk') { // 寻路移动
-            userData.girdX = data.gridX;
-            userData.girdY = data.gridY;
+            userData.girdX = data.girdX;
+            userData.girdY = data.girdY;
         }
+        return true;
     }
+    return false;
 };
+// 向玩家同步玩家信息
+exports.syncRpgPlayers = function (userId, game) {
+    // 玩家准备完毕之后，向玩家推送玩家游戏状态
+    var ret = [];
+    for (var index = 0; index < game.gameSeats.length; index++) {
+        var seatData = game.gameSeats[index];
+        ret.push({
+            userId: seatData.userId,
+            girdX: seatData.girdX,
+            girdY: seatData.girdY,
+        })
+    }
+    userMgr.sendMsg(userId, 'syncRpgPlayers', ret); // 向请求同步的玩家同步其他玩家的信息
+}
 //开始新的一局
 exports.makeGame = function (roomId) {
     var roomInfo = roomMgr.getRoom(roomId);
@@ -161,7 +244,8 @@ exports.makeGame = function (roomId) {
         state: "idle", // 游戏进行状态
         roomInfo: roomInfo, // 房间信息
         gameSeats: [], // 玩家在游戏中的信息
-        driveClientId: 0,
+        gameMonsters: [], // 副本中的怪物信息
+        driveClientId: 0, // 服务器选中的驱动客户端
 
     };
     // 保存游戏对局数据

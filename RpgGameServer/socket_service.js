@@ -93,6 +93,7 @@ exports.start = function (config, mgr) {
                 if (rs.userId > 0) {
                     online = userMgr.isOnline(rs.userId);
                 }
+                // 数据只是框架，实际数据需要客户端进入游戏之后，上报同步
                 seats.push({
                     userId: rs.userId,
                     ip: rs.ip,
@@ -150,6 +151,30 @@ exports.start = function (config, mgr) {
             socket.gameMgr.setReady(userId);
             userMgr.broacastInRoom('user_ready_rpg_push', { userId: userId, ready: true }, userId, true);
         });
+        // 怪物生成
+        socket.on('monsterCreate', function (data) {
+            data = JSON.parse(data);
+            console.log("怪物生成,来自于客户端", data.driveId);
+            var userId = socket.userId;
+            if (userId == null) {
+                return;
+            }
+            // data = {
+            //     driveId: gameSettingIns.uid,
+            //     id: monsterId,
+            //     monsterType: 0, // 怪物类型
+            //     currentHp: proty.currentHp, // 当前血量
+            //     currentMp: proty.currentMp, // 当前蓝量
+            //     maxHp: proty.maxHp, // 最大血量
+            //     maxMp: proty.maxMp, // 最大蓝量
+            //     girdX: endGrid.x,
+            //     girdY: endGrid.y,
+            // }
+            var result = socket.gameMgr.createMonster(data);
+            if (result == true) {
+                userMgr.broacastInRoom('monsterCreate_sync', data, userId, true);
+            }
+        });
         // 同步指令状态
         socket.on('syncRpgOBJAction', function (data) {
             data = JSON.parse(data);
@@ -164,8 +189,8 @@ exports.start = function (config, mgr) {
             }
             // var cmd = {
             //     action: 'walk',
-            //     gridX: 0,
-            //     gridY: 0,
+            //     girdX: 0,
+            //     girdY: 0,
             // }
             // var cmd = {
             //     action: 'walkByDir',
@@ -173,22 +198,44 @@ exports.start = function (config, mgr) {
             // }
             // var cmd = {
             //     action: 'girdXYSync',
-            //     gridX: 0,
-            //     gridY: 0,
+            //     girdX: 0,
+            //     girdY: 0,
             // }
-            if (data.action == 'walk' || data.action == 'walkByDir' || data.action == 'girdXYSync') {
+            // var cmd = {
+            //     action: 'monsterWalk',
+            //     userId: gameSettingIns.uid,
+            //     monsterId: mosterData.id,
+            //     girdX: gridIndex.x,
+            //     girdY: gridIndex.y,
+            // }
+            if (data.action == 'walk' ||
+                data.action == 'walkByDir' || // 按方向移动只需转发，摇杆停止后，会有寻路指令用来同步数据
+                data.action == 'girdXYSync' ||
+                data.action == 'monsterWalk') {
                 // console.log('syncOBJAction', data.action)
                 data.userId = userId;
-                userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
             } else {
                 console.log('未识别的同步指令', data.action)
+                return;
             }
-            // 部分指令的特殊操作
+            // 单独处理指令逻辑
             if (data.action == 'girdXYSync') {
-                socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
+                var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
+                }
             }
             if (data.action == 'walk') {
-                socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
+                var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
+                }
+            }
+            if (data.action == 'monsterWalk') {
+                var re = socket.gameMgr.monsterWalk(userId, data);
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true); // 怪物的移动是需要连同自己一起通知的
+                }
             }
         });
 
