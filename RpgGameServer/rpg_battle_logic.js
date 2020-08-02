@@ -106,7 +106,27 @@ exports.setDriveClient = function (roomId) {
     game.driveClientId = 0;
     return false;
 }
-//
+// 是否是驱动客户端
+exports.isDriveClient = function (userId) {
+    // 玩家有没有房间
+    var roomId = roomMgr.getUserRoom(userId);
+    if (roomId == null) {
+        return false;
+    }
+    var game = games[roomId];
+    if (game) {
+        // 确认是选中的驱动
+        if (userId == game.driveClientId) {
+            return true;
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+}
+
+// 怪物寻路移动
 exports.monsterWalk = function (userId, data) {
     // 玩家有没有房间
     var roomId = roomMgr.getUserRoom(userId);
@@ -116,7 +136,7 @@ exports.monsterWalk = function (userId, data) {
     var game = games[roomId];
     if (game) {
         // 确认是选中的驱动
-        if (data.userId == game.driveClientId) {
+        if (exports.isDriveClient(data.userId)) {
             // 找到对应怪物数据
             console.log('怪物移动', data.monsterId, 'to', data.girdX, data.girdY);
             var monData = gameMonstersMap[data.monsterId];
@@ -124,7 +144,7 @@ exports.monsterWalk = function (userId, data) {
             monData.girdY = data.girdY;
             return true;
         } else {
-            console.log('不是选中的驱动客户端的请求')
+            console.log('不是选中的驱动客户端的请求,丢弃')
             return false;
         }
     } else {

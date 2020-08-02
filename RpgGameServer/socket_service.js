@@ -208,9 +208,17 @@ exports.start = function (config, mgr) {
             //     girdX: gridIndex.x,
             //     girdY: gridIndex.y,
             // }
+            // var cmd = {
+            //     action: 'monsterGirdXYSync',
+            //     monsterId: this.getComponent(OBJConfig).OBJID,
+            //     userId: gameSettingIns.uid,
+            //     girdX: data.to.x,
+            //     girdY: data.to.y,
+            // }
             if (data.action == 'walk' ||
                 data.action == 'walkByDir' || // 按方向移动只需转发，摇杆停止后，会有寻路指令用来同步数据
                 data.action == 'girdXYSync' ||
+                data.action == 'monsterGirdXYSync' ||
                 data.action == 'monsterWalk') {
                 // console.log('syncOBJAction', data.action)
                 data.userId = userId;
@@ -225,6 +233,9 @@ exports.start = function (config, mgr) {
                     userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
                 }
             }
+            if (data.action == 'walkByDir') {
+                userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
+            }
             if (data.action == 'walk') {
                 var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
                 if (re == true) {
@@ -235,6 +246,12 @@ exports.start = function (config, mgr) {
                 var re = socket.gameMgr.monsterWalk(userId, data);
                 if (re == true) {
                     userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true); // 怪物的移动是需要连同自己一起通知的
+                }
+            }
+            if (data.action == 'monsterGirdXYSync') {
+                var re = socket.gameMgr.isDriveClient(userId);
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
                 }
             }
         });
