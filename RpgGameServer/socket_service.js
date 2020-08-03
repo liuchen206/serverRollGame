@@ -109,6 +109,7 @@ exports.start = function (config, mgr) {
                     maxMp: 100, // 最大蓝量
                     girdX: -1, // 所处位置x
                     girdY: -1, // 所处位置y
+                    buffs: [],// 玩家状态
                 });
 
                 if (userId == rs.userId) {
@@ -215,10 +216,17 @@ exports.start = function (config, mgr) {
             //     girdX: data.to.x,
             //     girdY: data.to.y,
             // }
+            // var cmd = {
+            //     action: 'playerBuffSync',
+            //     userId: gameSettingIns.uid,
+            //     remainTime: this.buffTime,
+            //     buffType: this.buffType,
+            // }
             if (data.action == 'walk' ||
                 data.action == 'walkByDir' || // 按方向移动只需转发，摇杆停止后，会有寻路指令用来同步数据
                 data.action == 'girdXYSync' ||
                 data.action == 'monsterGirdXYSync' ||
+                data.action == 'playerBuffSync' ||
                 data.action == 'monsterWalk') {
                 // console.log('syncOBJAction', data.action)
                 data.userId = userId;
@@ -250,6 +258,12 @@ exports.start = function (config, mgr) {
             }
             if (data.action == 'monsterGirdXYSync') {
                 var re = socket.gameMgr.isDriveClient(userId);
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
+                }
+            }
+            if (data.action == 'playerBuffSync') {
+                var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
                 if (re == true) {
                     userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
                 }

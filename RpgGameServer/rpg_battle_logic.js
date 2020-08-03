@@ -221,11 +221,11 @@ exports.playerDataUpdate = function (userId, data, callback) {
     // 更新相关逻辑
     var game = games[roomId];
     if (game == null) {// 游戏未创建
-        console.log('没有游戏没有进行')
+        console.log('没有游戏进行')
         return false;
     } else {
         var userData = gameSeatsOfUsers[userId];
-        console.log('更新玩家', userData.userId, '到位置', data.girdX, data.girdY)
+        console.log('更新玩家', userData.userId, data.action, JSON.stringify(data))
         if (data.action == 'girdXYSync') { // 请求立即同步
             userData.girdX = data.girdX;
             userData.girdY = data.girdY;
@@ -235,9 +235,17 @@ exports.playerDataUpdate = function (userId, data, callback) {
             userData.girdX = data.girdX;
             userData.girdY = data.girdY;
         }
+        if (data.action == 'playerBuffSync') { // buff 同步
+            for (var i = 0; i < userData.buffs.length; i++) {
+                if (userData.buffs[i].buffType == data.buffType) {
+                    userData.buffs[i] = data; // 已经有这个buff就直接替换作为更新
+                    return true;
+                }
+            }
+            userData.buffs.push(data); // 没有就直接添加
+        }
         return true;
     }
-    return false;
 };
 // 向玩家同步玩家信息
 exports.syncRpgPlayers = function (userId, game) {
