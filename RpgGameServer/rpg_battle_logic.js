@@ -138,13 +138,13 @@ exports.monsterWalk = function (userId, data) {
         // 确认是选中的驱动
         if (exports.isDriveClient(data.userId)) {
             // 找到对应怪物数据
-            console.log('怪物移动', data.monsterId, 'to', data.girdX, data.girdY);
-            var monData = gameMonstersMap[data.monsterId];
-            monData.girdX = data.girdX;
-            monData.girdY = data.girdY;
+            // console.log('怪物移动', data.monsterId, 'to', data.girdX, data.girdY);
+            // var monData = gameMonstersMap[data.monsterId];
+            // monData.girdX = data.girdX;
+            // monData.girdY = data.girdY;
             return true;
         } else {
-            console.log('不是选中的驱动客户端的请求,丢弃')
+            // console.log('不是选中的驱动客户端的请求,丢弃')
             return false;
         }
     } else {
@@ -161,7 +161,7 @@ exports.createMonster = function (data) {
     }
     var game = games[roomId];
     if (game) {
-        console.log('服务器设置的驱动', game.driveClientId, '传送逻辑的玩家', data.driveId)
+        // console.log('服务器设置的驱动', game.driveClientId, '传送逻辑的玩家', data.driveId)
         if (game.driveClientId == data.driveId) {
             var monData = gameMonstersMap[data.id];
             if (monData) {
@@ -170,9 +170,9 @@ exports.createMonster = function (data) {
                 game.gameMonsters.push(data);
                 gameMonstersMap[data.id] = data;
             }
-            console.log('添加怪物', data.id)
+            // console.log('添加怪物', data.id)
         } else {
-            console.log('该玩家不是服务器选中的驱动客户端')
+            // console.log('该玩家不是服务器选中的驱动客户端')
             return false;
         }
     } else {
@@ -225,7 +225,7 @@ exports.playerDataUpdate = function (userId, data, callback) {
         return false;
     } else {
         var userData = gameSeatsOfUsers[userId];
-        console.log('更新玩家', userData.userId, data.action, JSON.stringify(data))
+        // console.log('更新玩家', userData.userId, data.action, JSON.stringify(data))
         if (data.action == 'girdXYSync') { // 请求立即同步
             userData.girdX = data.girdX;
             userData.girdY = data.girdY;
