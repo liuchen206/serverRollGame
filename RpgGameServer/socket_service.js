@@ -222,11 +222,28 @@ exports.start = function (config, mgr) {
             //     remainTime: this.buffTime,
             //     buffType: this.buffType,
             // }
+            // var cmd = {
+            //     action: 'monsterAttack',
+            //     userId: gameSettingIns.uid,
+            //     monsterId: this.getComponent(OBJConfig).OBJID,
+            //     attackUserId: this.getComponent(Brain).attackTarget.getComponent(OBJConfig).OBJID,
+            //     attackType: AttackType.normalCloseAttack,
+            // }
+            // var cmd = {
+            //     action: 'playerDamageCause',
+            //     userId: gameSettingIns.uid,
+            //     fromId: this.getComponent(OBJConfig).OBJID,
+            //     toId: this.getComponent(Brain).attackTarget.getComponent(OBJConfig).OBJID,
+            //     attackType: AttackType.normalCloseAttack,
+            //     damage: damage,
+            // }
             if (data.action == 'walk' ||
                 data.action == 'walkByDir' || // 按方向移动只需转发，摇杆停止后，会有寻路指令用来同步数据
                 data.action == 'girdXYSync' ||
                 data.action == 'monsterGirdXYSync' ||
                 data.action == 'playerBuffSync' ||
+                data.action == 'monsterAttack' ||
+                data.action == 'playerDamageCause' ||
                 data.action == 'monsterWalk') {
                 // console.log('syncOBJAction', data.action)
                 data.userId = userId;
@@ -266,6 +283,18 @@ exports.start = function (config, mgr) {
                 var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
                 if (re == true) {
                     userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
+                }
+            }
+            if (data.action == 'monsterAttack') {
+                var re = socket.gameMgr.isDriveClient(userId);
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
+                }
+            }
+            if (data.action == 'playerDamageCause') {
+                var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true);
                 }
             }
         });

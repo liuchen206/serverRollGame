@@ -66,6 +66,7 @@ exports.setReady = function (userId, callback) {
     }
     // 给刚进来的玩家通知怪物信息
     userMgr.sendMsg(userId, 'monsterSync', game.gameMonsters);
+    exports.syncRpgPlayers(userId, game);
 };
 // 设法已经设置了客户端驱动
 exports.isDriveClientRunning = function (roomId) {
@@ -225,7 +226,7 @@ exports.playerDataUpdate = function (userId, data, callback) {
         return false;
     } else {
         var userData = gameSeatsOfUsers[userId];
-        // console.log('更新玩家', userData.userId, data.action, JSON.stringify(data))
+        console.log('更新玩家', userData.userId, data.action, JSON.stringify(data))
         if (data.action == 'girdXYSync') { // 请求立即同步
             userData.girdX = data.girdX;
             userData.girdY = data.girdY;
@@ -244,6 +245,9 @@ exports.playerDataUpdate = function (userId, data, callback) {
             }
             userData.buffs.push(data); // 没有就直接添加
         }
+        if (data.action == 'playerDamageCause') {
+            userData.currentHp -= data.damage;
+        }
         return true;
     }
 };
@@ -257,6 +261,7 @@ exports.syncRpgPlayers = function (userId, game) {
             userId: seatData.userId,
             girdX: seatData.girdX,
             girdY: seatData.girdY,
+            currentHp: seatData.currentHp,
         })
     }
     userMgr.sendMsg(userId, 'syncRpgPlayers', ret); // 向请求同步的玩家同步其他玩家的信息
