@@ -126,7 +126,49 @@ exports.isDriveClient = function (userId) {
         return false;
     }
 }
-
+// 怪物数据更新
+exports.monsterDataUpdate = function (userId, data) {
+    // 玩家有没有房间
+    var roomId = roomMgr.getUserRoom(userId);
+    if (roomId == null) {
+        return false;
+    }
+    var game = games[roomId];
+    if (game) {
+        // 确认是选中的驱动
+        if (exports.isDriveClient(data.userId)) {
+            if (data.action == 'monsterDamageCause') {
+                // 找到对应怪物数据
+                // console.log('怪物扣血，向 怪物', data.toId, '从玩家 ', data.fromId, '伤害：', data.damage);
+                var monData = gameMonstersMap[data.toId];
+                if (monData) {
+                    monData.currentHp -= data.damage;
+                }
+            }
+            if (data.action == 'monsterDead') {
+                console.log('怪物死亡：', data.monsterId);
+                var monData = gameMonstersMap[data.monsterId];
+                if (monData) {
+                    delete gameMonstersMap[data.monsterId];
+                    for (var i = 0; i < game.gameMonsters.length; i++) {
+                        var monData = game.gameMonsters[i];
+                        if (monData.id == data.monsterId) {
+                            game.gameMonsters.splice(i, 1);
+                            return;
+                        }
+                    }
+                }
+            }
+            return true;
+        } else {
+            // console.log('不是选中的驱动客户端的请求,丢弃')
+            return false;
+        }
+    } else {
+        console.log('无法添加怪物，没有找到游戏')
+        return false;
+    }
+}
 // 怪物寻路移动
 exports.monsterWalk = function (userId, data) {
     // 玩家有没有房间
@@ -226,7 +268,7 @@ exports.playerDataUpdate = function (userId, data, callback) {
         return false;
     } else {
         var userData = gameSeatsOfUsers[userId];
-        console.log('更新玩家', userData.userId, data.action, JSON.stringify(data))
+        // console.log('更新玩家', userData.userId, data.action, JSON.stringify(data))
         if (data.action == 'girdXYSync') { // 请求立即同步
             userData.girdX = data.girdX;
             userData.girdY = data.girdY;

@@ -237,6 +237,25 @@ exports.start = function (config, mgr) {
             //     attackType: AttackType.normalCloseAttack,
             //     damage: damage,
             // }
+            // var cmd = {
+            //     action: 'playerAttack',
+            //     userId: gameSettingIns.uid,
+            //     monsterId: target.getComponent(OBJConfig).OBJID,
+            //     attackType: AttackType.normalCloseAttack,
+            // }
+            // var cmd = {
+            //     action: 'monsterDamageCause', // 给怪物造成伤害
+            //     userId: gameSettingIns.uid,
+            //     fromId: this.getComponent(OBJConfig).OBJID,
+            //     toId: this.getComponent(Brain).attackTarget.getComponent(OBJConfig).OBJID,
+            //     attackType: AttackType.normalCloseAttack,
+            //     damage: damage,
+            // }
+            // var cmd = {
+            //     action: 'monsterDead', // 怪物死亡
+            //     userId: gameSettingIns.uid,
+            //     monsterId: this.getComponent(OBJConfig).OBJID,
+            // }
             if (data.action == 'walk' ||
                 data.action == 'walkByDir' || // 按方向移动只需转发，摇杆停止后，会有寻路指令用来同步数据
                 data.action == 'girdXYSync' ||
@@ -244,6 +263,9 @@ exports.start = function (config, mgr) {
                 data.action == 'playerBuffSync' ||
                 data.action == 'monsterAttack' ||
                 data.action == 'playerDamageCause' ||
+                data.action == 'playerAttack' ||
+                data.action == 'monsterDamageCause' ||
+                data.action == 'monsterDead' ||
                 data.action == 'monsterWalk') {
                 // console.log('syncOBJAction', data.action)
                 data.userId = userId;
@@ -295,6 +317,24 @@ exports.start = function (config, mgr) {
                 var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
                 if (re == true) {
                     userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true);
+                }
+            }
+            if (data.action == 'playerAttack') {
+                var re = socket.gameMgr.isDriveClient(userId);
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
+                }
+            }
+            if (data.action == 'monsterDamageCause') {
+                var re = socket.gameMgr.monsterDataUpdate(userId, data);
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true); // 怪物扣血
+                }
+            }
+            if (data.action == 'monsterDead') {
+                var re = socket.gameMgr.monsterDataUpdate(userId, data);
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true); // 怪物死亡
                 }
             }
         });
