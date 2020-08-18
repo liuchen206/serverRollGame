@@ -109,7 +109,7 @@ exports.get_user_data = function (account, callback) {
         callback(null);
         return;
     }
-    var sql = 'SELECT uid,account,name,gems FROM t_users WHERE account = "' + account + '"';
+    var sql = 'SELECT uid,account,name,gems,level,exps,itemInBag,roleName FROM t_users WHERE account = "' + account + '"';
     query(sql, function (err, rows, fields) {
         if (err) {
             callback(null);
@@ -153,15 +153,15 @@ exports.is_user_exist = function (account, callback) {
  * @param {*} gems 
  * @param {*} callback 
  */
-exports.create_user = function (account, name, gems, callback) {
+exports.create_user = function (account, name, gems, level, exps, itemInbag, roleName, callback) {
     callback = callback == null ? nop : callback;
     if (account == null || name == null || gems == null) {
         callback(false);
         return;
     }
-    var sql = 'INSERT INTO t_users(account,name,gems) VALUES("{0}","{1}",{2})';
+    var sql = 'INSERT INTO t_users(account,name,gems,level,exps,itemInbag,roleName) VALUES("{0}","{1}",{2},{3},{4},"{5}","{6}")';
     // name = crypto.toBase64(name);
-    sql = sql.format(account, name, gems);
+    sql = sql.format(account, name, gems, level, exps, itemInbag, roleName);
     query(sql, function (err, rows, fields) {
         if (err) {
             throw err;

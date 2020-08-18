@@ -154,7 +154,7 @@ exports.monsterDataUpdate = function (userId, data) {
                         var monData = game.gameMonsters[i];
                         if (monData.id == data.monsterId) {
                             game.gameMonsters.splice(i, 1);
-                            return;
+                            return true;
                         }
                     }
                 }

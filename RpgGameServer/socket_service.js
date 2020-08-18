@@ -102,7 +102,7 @@ exports.start = function (config, mgr) {
                     ready: rs.ready,
                     seatIndex: i,
                     // 下面数据应该是 玩家进入房间时上报，但现在只设置默认值
-                    chosedRole: i, // 玩家选择的角色
+                    roleName: rs.roleName, // 玩家选择的角色
                     currentHp: 100, // 当前血量
                     currentMp: 100, // 当前蓝量
                     maxHp: 100, // 最大血量
@@ -239,7 +239,7 @@ exports.start = function (config, mgr) {
             // }
             // var cmd = {
             //     action: 'playerAttack',
-            //     userId: gameSettingIns.uid,
+            //     fromUserId: gameSettingIns.uid,
             //     monsterId: target.getComponent(OBJConfig).OBJID,
             //     attackType: AttackType.normalCloseAttack,
             // }
@@ -320,10 +320,12 @@ exports.start = function (config, mgr) {
                 }
             }
             if (data.action == 'playerAttack') {
-                var re = socket.gameMgr.isDriveClient(userId);
-                if (re == true) {
-                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
-                }
+                // bug：玩家发起攻击同步不需要验证发起攻击的玩家是不是驱动客户端
+                // var re = socket.gameMgr.isDriveClient(userId);
+                // if (re == true) {
+                //     userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
+                // }
+                userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
             }
             if (data.action == 'monsterDamageCause') {
                 var re = socket.gameMgr.monsterDataUpdate(userId, data);

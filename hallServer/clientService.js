@@ -52,11 +52,16 @@ app.get('/login', function (req, res) {
             http.send(res, 0, "没有找到创建的账号信息，请创建角色"); // 此时错误码依旧返回0，让客户端在成功返回但没有ret信息的时候知道自己创建角色
             return;
         }
+        console.log('登录玩家等级', data.level)
         var ret = {
             uid: data.uid,
             account: data.account,
             name: data.name,
             gems: data.gems,
+            level: data.level,
+            exps: data.exps,
+            itemInBag: data.itemInBag,
+            roleName: data.roleName,
             roomid: '',
         };
         // 检查玩家是否在某局游戏中
@@ -89,12 +94,16 @@ app.get('/create_user', function (req, res) {
     }
     var account = req.query.account;
     var name = req.query.name;
+    var roleName = req.query.roleName;
     var gems = 1102;
-    console.log('新建玩家 ', name);
+    var level = 1;
+    var exps = 0;
+    var itemInbag = '';
+    console.log('新建玩家 ', name, roleName);
 
     db.is_user_exist(account, function (ret) {
         if (!ret) { // 不存在就创建一个
-            db.create_user(account, name, gems, function (ret) {
+            db.create_user(account, name, gems, level, exps, itemInbag, roleName, function (ret) {
                 if (ret == null) {
                     http.send(res, 2, "写入数据库失败，检查数据是否初始化错误");
                 } else {
@@ -275,6 +284,7 @@ app.get('/create_private_room_for_RPG', function (req, res) {
         return;
     }
     var account = data.account;
+    var roleName = data.roleName;
     data.account = null;
     data.sign = null;
     var conf = data.conf;
@@ -287,7 +297,7 @@ app.get('/create_private_room_for_RPG', function (req, res) {
         // 成功读取到玩家数据
         var userId = data.uid;
         var name = data.name;
-        console.log('玩家发起 rpg 创建房间', userId, name, JSON.parse(conf).gameType)
+        console.log('玩家发起 rpg 创建房间', userId, name, roleName, JSON.parse(conf).gameType)
         // 查找玩家已经存在的房间信息
         db.get_room_id_of_user(userId, function (roomId) {
             console.log('查询玩家  roomId', userId, roomId)
@@ -301,7 +311,7 @@ app.get('/create_private_room_for_RPG', function (req, res) {
                 if (err == 0 && roomId != null) {
                     // 创建成功 立即 进入房间
                     console.log('创建成功 立即 开始进入房间')
-                    room_service.enterRoom_rpg(userId, name, roomId, function (errcode, enterInfo) {
+                    room_service.enterRoom_rpg(userId, name, roomId, roleName, function (errcode, enterInfo) {
                         if (enterInfo) {
                             var ret = {
                                 roomid: roomId,
@@ -352,6 +362,7 @@ app.get('/enter_private_room_rpg', function (req, res) {
     console.log('尝试进入 rpg')
     var data = req.query;
     var roomId = data.roomid;
+    var roleName = data.roleName;
     if (roomId == null) {
         http.send(res, -1, "没有传送房间号.");
         return;
@@ -368,7 +379,7 @@ app.get('/enter_private_room_rpg', function (req, res) {
         var userId = data.uid;
         var name = data.name;
         //进入房间
-        room_service.enterRoom_rpg(userId, name, roomId, function (errcode, enterInfo) {
+        room_service.enterRoom_rpg(userId, name, roomId, roleName, function (errcode, enterInfo) {
             if (enterInfo) {
                 var ret = {
                     roomid: roomId,

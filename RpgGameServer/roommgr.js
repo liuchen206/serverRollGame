@@ -92,12 +92,13 @@ exports.createRoom = function (creator, roomConf, gems, ip, port, callback) {
                         roomInfo.gameMgr = require("./rpg_battle_logic");
                     }
                     for (var i = 0; i < roomInfo.playerNum; ++i) {
-                        // 玩家座位信息
+                        // 玩家座位信息,默认值
                         roomInfo.seats.push({
                             userId: 0,
                             name: "",
                             ready: false,
                             seatIndex: i,
+                            roleName: '',
                             currentGirdIndex: 0,
                             ip: "", // 长连接握手IP地址。由客户端发起长连接时赋值
                         });
@@ -187,7 +188,7 @@ exports.getRoom = function (roomId) {
 };
 // 进入房间
 var userLocation = {};
-exports.enterRoom = function (roomId, userId, userName, callback) {
+exports.enterRoom = function (roomId, userId, userName, roleName, callback) {
     // 玩家进入座位
     var fnTakeSeat = function (room) {
         if (exports.getUserRoom(userId) == roomId) {
@@ -199,6 +200,7 @@ exports.enterRoom = function (roomId, userId, userName, callback) {
             if (seat.userId <= 0) {
                 seat.userId = userId;
                 seat.name = userName;
+                seat.roleName = roleName;
                 // todo 上报完整的玩家个人信息
 
                 // 当玩家入座之后，单独为已经入座的玩家创建一个索引。
