@@ -284,7 +284,6 @@ app.get('/create_private_room_for_RPG', function (req, res) {
         return;
     }
     var account = data.account;
-    var roleName = data.roleName;
     data.account = null;
     data.sign = null;
     var conf = data.conf;
@@ -297,6 +296,9 @@ app.get('/create_private_room_for_RPG', function (req, res) {
         // 成功读取到玩家数据
         var userId = data.uid;
         var name = data.name;
+        var roleName = data.roleName;
+        var level = data.level;
+        var itemInBag = data.itemInBag;
         console.log('玩家发起 rpg 创建房间', userId, name, roleName, JSON.parse(conf).gameType)
         // 查找玩家已经存在的房间信息
         db.get_room_id_of_user(userId, function (roomId) {
@@ -311,7 +313,7 @@ app.get('/create_private_room_for_RPG', function (req, res) {
                 if (err == 0 && roomId != null) {
                     // 创建成功 立即 进入房间
                     console.log('创建成功 立即 开始进入房间')
-                    room_service.enterRoom_rpg(userId, name, roomId, roleName, function (errcode, enterInfo) {
+                    room_service.enterRoom_rpg(userId, name, roomId, roleName, level, itemInBag, function (errcode, enterInfo) {
                         if (enterInfo) {
                             var ret = {
                                 roomid: roomId,
@@ -362,7 +364,6 @@ app.get('/enter_private_room_rpg', function (req, res) {
     console.log('尝试进入 rpg')
     var data = req.query;
     var roomId = data.roomid;
-    var roleName = data.roleName;
     if (roomId == null) {
         http.send(res, -1, "没有传送房间号.");
         return;
@@ -378,8 +379,11 @@ app.get('/enter_private_room_rpg', function (req, res) {
         }
         var userId = data.uid;
         var name = data.name;
+        var roleName = data.roleName;
+        var level = data.level;
+        var itemInBag = data.itemInBag;
         //进入房间
-        room_service.enterRoom_rpg(userId, name, roomId, roleName, function (errcode, enterInfo) {
+        room_service.enterRoom_rpg(userId, name, roomId, roleName, level, itemInBag, function (errcode, enterInfo) {
             if (enterInfo) {
                 var ret = {
                     roomid: roomId,

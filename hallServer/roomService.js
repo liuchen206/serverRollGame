@@ -271,12 +271,14 @@ exports.createRoomForRPG = function (account, userId, roomConf, fnCallback) {
     })
 };
 // 进入一个房间
-exports.enterRoom_rpg = function (userId, name, roomId, roleName, fnCallback) {
+exports.enterRoom_rpg = function (userId, name, roomId, roleName, level, itemInBag, fnCallback) {
     // 构建进入房间数据
     var reqdata = {
         userid: userId,
         name: name,
         roleName: roleName,
+        level: level,
+        itemInBag: itemInBag,
         roomid: roomId,
         sign: '',
     };

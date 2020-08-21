@@ -278,6 +278,20 @@ exports.playerDataUpdate = function (userId, data, callback) {
             userData.girdX = data.girdX;
             userData.girdY = data.girdY;
         }
+        if (data.action == 'playerPropertySync') {
+            userData.maxHp = data.maxHp;
+            userData.maxMp = data.maxMp;
+            userData.phyDamage = data.phyDamage;
+            userData.magicDamage = data.magicDamage;
+            userData.phyResis = data.phyResis;
+            userData.magicResis = data.magicResis;
+            userData.atkSpeed = data.atkSpeed;
+            userData.critRate = data.critRate;
+            userData.critDamage = data.critDamage;
+            userData.atkRange = data.atkRange;
+            userData.walkSpeed = data.walkSpeed;
+            exports.syncRpgPlayers(userId, game);
+        }
         if (data.action == 'playerBuffSync') { // buff 同步
             for (var i = 0; i < userData.buffs.length; i++) {
                 if (userData.buffs[i].buffType == data.buffType) {
@@ -304,9 +318,69 @@ exports.syncRpgPlayers = function (userId, game) {
             girdX: seatData.girdX,
             girdY: seatData.girdY,
             currentHp: seatData.currentHp,
+            currentMp: seatData.currentMp,
+            maxHp: seatData.maxHp,
+            maxMp: seatData.maxMp,
+            phyDamage: seatData.phyDamage,
+            magicDamage: seatData.magicDamage,
+            phyResis: seatData.phyResis,
+            magicResis: seatData.magicResis,
+            atkSpeed: seatData.atkSpeed,
+            critRate: seatData.critRate,
+            critDamage: seatData.critDamage,
+            atkRange: seatData.atkRange,
+            walkSpeed: seatData.walkSpeed,
         })
     }
     userMgr.sendMsg(userId, 'syncRpgPlayers', ret); // 向请求同步的玩家同步其他玩家的信息
+}
+// 玩家物品更新
+exports.playerItemUpdate = function (userId, itemData) {
+    // 玩家有没有房间
+    var roomId = roomMgr.getUserRoom(userId);
+    if (roomId == null) {
+        return;
+    }
+    // 房间是不是有效
+    var roomInfo = roomMgr.getRoom(roomId);
+    if (roomInfo == null) {
+        return;
+    }
+    // 玩家数据
+    db.get_user_bag_items(userId, function (data) {
+        if (data == null) { // 没有物品信息
+            return;
+        }
+        if (data.itemInBag.length > 0) {
+            console.log('查询', userId, '背包信息：', data.itemInBag, '---', JSON.parse(data.itemInBag)[0]['所处位置']);
+        }
+        var items = data.itemInBag;
+        if (items.length == 0) {
+            items = [];
+        } else {
+            items = JSON.parse(data.itemInBag)
+        }
+        var isAlreadyHas = false;
+        for (var i = 0; i < items.length; i++) {
+            var alreadyHasItem = items[i];
+            if (itemData['物品id'] == alreadyHasItem['物品id']) {
+                isAlreadyHas = true;
+                items[i] = itemData;
+                return;
+            }
+        }
+        if (isAlreadyHas == true) {
+
+        } else {
+            items.push(itemData);
+        }
+        db.update_user_bag_items(userId, JSON.stringify(items), function (data) {
+            if (data) {
+                console.log('更新成功')
+            }
+        })
+    });
+
 }
 //开始新的一局
 exports.makeGame = function (roomId) {

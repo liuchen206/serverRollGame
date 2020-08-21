@@ -103,6 +103,8 @@ app.get('/enter_room', function (req, res) {
     var name = req.query.name;
     var roomId = req.query.roomid;
     var roleName = req.query.roleName;
+    var level = req.query.level;
+    var itemInBag = req.query.itemInBag;
     var sign = req.query.sign;
     // 参数检查
     if (userId == null || roomId == null || sign == null) {
@@ -118,7 +120,7 @@ app.get('/enter_room', function (req, res) {
         return;
     }
     //安排玩家坐下
-    roomMgr.enterRoom(roomId, userId, name, roleName, function (ret) {
+    roomMgr.enterRoom(roomId, userId, name, roleName, level, itemInBag, function (ret) {
         if (ret != 0) {
             if (ret == 1) {
                 http.send(res, 4, "房间已满.");

@@ -188,7 +188,7 @@ exports.getRoom = function (roomId) {
 };
 // 进入房间
 var userLocation = {};
-exports.enterRoom = function (roomId, userId, userName, roleName, callback) {
+exports.enterRoom = function (roomId, userId, userName, roleName, level, itemInBag, callback) {
     // 玩家进入座位
     var fnTakeSeat = function (room) {
         if (exports.getUserRoom(userId) == roomId) {
@@ -200,9 +200,10 @@ exports.enterRoom = function (roomId, userId, userName, roleName, callback) {
             if (seat.userId <= 0) {
                 seat.userId = userId;
                 seat.name = userName;
+                // 上报的完整的玩家个人信息，可以描述出一个玩家的完整信息。
                 seat.roleName = roleName;
-                // todo 上报完整的玩家个人信息
-
+                seat.level = level;
+                seat.itemInBag = itemInBag;
                 // 当玩家入座之后，单独为已经入座的玩家创建一个索引。
                 userLocation[userId] = {
                     roomId: roomId,

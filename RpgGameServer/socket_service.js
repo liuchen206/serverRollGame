@@ -103,10 +103,22 @@ exports.start = function (config, mgr) {
                     seatIndex: i,
                     // 下面数据应该是 玩家进入房间时上报，但现在只设置默认值
                     roleName: rs.roleName, // 玩家选择的角色
+                    level: rs.level, // 玩家等级
+                    itemInBag: rs.itemInBag, // 玩家背包信息
                     currentHp: 100, // 当前血量
                     currentMp: 100, // 当前蓝量
                     maxHp: 100, // 最大血量
                     maxMp: 100, // 最大蓝量
+                    phyDamage: 0, // 物理攻击
+                    magicDamage: 0, // 魔法攻击
+                    phyResis: 0, // 物理抗性
+                    magicResis: 0, // 魔法抗性
+                    atkSpeed: 0, // 攻击速度
+                    critRate: 0, // 暴击几率
+                    critDamage: 0, // 暴击伤害
+                    atkRange: 0, // 攻击范围
+                    walkSpeed: 0, // 移动速度
+
                     girdX: -1, // 所处位置x
                     girdY: -1, // 所处位置y
                     buffs: [],// 玩家状态
@@ -166,8 +178,17 @@ exports.start = function (config, mgr) {
             //     monsterType: 0, // 怪物类型
             //     currentHp: proty.currentHp, // 当前血量
             //     currentMp: proty.currentMp, // 当前蓝量
-            //     maxHp: proty.maxHp, // 最大血量
-            //     maxMp: proty.maxMp, // 最大蓝量
+            //     maxHp: 100, // 最大血量
+            //     maxMp: 100, // 最大蓝量
+            // proty.phyDamage = monData.phyDamage; // 物理攻击
+            // proty.magicDamage = monData.magicDamage; // 魔法攻击
+            // proty.phyResis = monData.phyResis; // 物理抗性
+            // proty.magicResis = monData.magicResis; // 魔法抗性
+            // proty.atkSpeed = monData.atkSpeed; // 攻击速度
+            // proty.critRate = monData.critRate; // 暴击率
+            // proty.critDamage = monData.critDamage; // 暴击伤害
+            // proty.atkRange = monData.atkRange;// 攻击范围
+            // proty.walkSpeed = monData.walkSpeed;// 移动速度
             //     girdX: endGrid.x,
             //     girdY: endGrid.y,
             // }
@@ -256,6 +277,20 @@ exports.start = function (config, mgr) {
             //     userId: gameSettingIns.uid,
             //     monsterId: this.getComponent(OBJConfig).OBJID,
             // }
+            // var cmd = {
+            //     action: 'playerPropertySync',
+            //     maxHp: levelProperty.maxHp,
+            //     maxMp: levelProperty.maxMp,
+            //     phyDamage: levelProperty.phyDamage,
+            //     magicDamage: levelProperty.magicDamage,
+            //     phyResis: levelProperty.phyResis,
+            //     magicResis: levelProperty.magicResis,
+            //     atkSpeed: levelProperty.atkSpeed,
+            //     critRate: levelProperty.critRate,
+            //     critDamage: levelProperty.critDamage,
+            //     atkRange: levelProperty.atkRange,
+            //     walkSpeed: levelProperty.walkSpeed,
+            // }
             if (data.action == 'walk' ||
                 data.action == 'walkByDir' || // 按方向移动只需转发，摇杆停止后，会有寻路指令用来同步数据
                 data.action == 'girdXYSync' ||
@@ -266,6 +301,7 @@ exports.start = function (config, mgr) {
                 data.action == 'playerAttack' ||
                 data.action == 'monsterDamageCause' ||
                 data.action == 'monsterDead' ||
+                data.action == 'playerPropertySync' ||
                 data.action == 'monsterWalk') {
                 // console.log('syncOBJAction', data.action)
                 data.userId = userId;
@@ -297,6 +333,12 @@ exports.start = function (config, mgr) {
             }
             if (data.action == 'monsterGirdXYSync') {
                 var re = socket.gameMgr.isDriveClient(userId);
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
+                }
+            }
+            if (data.action == 'playerPropertySync') {
+                var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
                 if (re == true) {
                     userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, false);
                 }
@@ -340,7 +382,23 @@ exports.start = function (config, mgr) {
                 }
             }
         });
-
-
+        // 玩家物品更新(新增)
+        socket.on('playerItemUpdate', function (data) {
+            data = JSON.parse(data);
+            var userId = socket.userId;
+            if (userId == null) {
+                return;
+            }
+            var roomId = roomMgr.getUserRoom(userId);
+            if (roomId == null) {
+                console.log('没有房间信息，无法同步');
+                return;
+            }
+            var re = socket.gameMgr.playerItemUpdate(userId, data.saveData);
+            console.log('物品同步', userId, data);
+            if (re == true) {
+                userMgr.broacastInRoom('playerItemUpdate_sync', data, userId, true); // 广播同步
+            }
+        });
     });
 }

@@ -98,6 +98,67 @@ function dbTestDelate() {
 function nop(a, b, c, d, e, f, g) {
 
 }
+// 更新玩家背包
+exports.update_user_bag_items = function (userId, newBagItems, callback) {
+    callback = callback == null ? nop : callback;
+    if (userId == null) {
+        callback(false);
+        return;
+    }
+    if (newBagItems != null) {
+        console.log('清除双引号干扰 1：', newBagItems);
+        /**
+         * 经过一系列的尝试，问题不是出在字符串的单双引号上面，是数据库不支持汉字字符。修改数据库该字段的编码方式即可
+         */
+        // 双引号改 \"
+        // var newBagItems = newBagItems.replace(/"/g, '\\"');
+        // 单引号改 \"
+        // var newBagItems = newBagItems.replace(/'/g, '\\"');
+        // 双引号改单引号
+        // newBagItems = newBagItems.replace(/"/g, '\'')
+        // console.log('清除双引号干扰 2：', newBagItems);
+        // 单引号改双引号
+        // newBagItems = newBagItems.replace(/'/g, '"')
+        // console.log('清除单引号干扰 3：', newBagItems);
+    }
+
+    var sql = 'UPDATE t_users SET itemInBag =' + "\'" + newBagItems + "\'" + ' WHERE uid = "' + userId + '"';
+
+    // var sql = 'UPDATE t_users SET itemInBag = {0} WHERE uid = {1}'
+    // sql = sql.format(newBagItems, userId);
+
+    console.log('更新背包', sql);
+    query(sql, function (err, row, fields) {
+        if (err) {
+            callback(false);
+            throw err;
+        }
+        else {
+            callback(true);
+        }
+    });
+};
+
+/** 查询玩家背包 */
+exports.get_user_bag_items = function (userId, callback) {
+    callback = callback == null ? nop : callback;
+    if (userId == null) {
+        callback(null);
+        return;
+    }
+    var sql = 'SELECT itemInBag FROM t_users WHERE uid = "' + userId + '"';
+    query(sql, function (err, rows, fields) {
+        if (err) {
+            callback(null);
+            throw err;
+        }
+        if (rows.length == 0) {
+            callback(null);
+            return;
+        }
+        callback(rows[0]);
+    });
+}
 /**
  * 查询玩家信息
  * @param {*} account 
@@ -189,7 +250,7 @@ exports.get_gems = function (account, callback) {
         callback(rows[0]);
     });
 };
-// 查询房间是否存在
+// 查询房间是否存在(包括棋盘游戏和rpg副本)
 exports.is_room_exist = function (roomId, callback) {
     callback = callback == null ? nop : callback;
     var sql = 'SELECT * FROM t_rooms WHERE roomId = "' + roomId + '"';
@@ -198,7 +259,23 @@ exports.is_room_exist = function (roomId, callback) {
             callback(false);
             throw err;
         } else {
-            callback(rows.length > 0);
+            var re = rows.length > 0;
+            console.log('棋盘 房间', re)
+            if (re == false) {
+                var sqlRPG = 'SELECT * FROM t_rooms_rpg WHERE roomId = "' + roomId + '"';
+                query(sqlRPG, function (err, rows, fields) {
+                    if (err) {
+                        callback(false);
+                        throw err;
+                    } else {
+                        var re = rows.length > 0;
+                        console.log('rpg 房间', re)
+                        callback(re);
+                    }
+                });
+            } else {
+                callback(re);
+            }
         }
     });
 };
@@ -320,7 +397,7 @@ exports.set_room_id_of_user = function (userId, roomId, callback) {
         roomId = '"' + roomId + '"';
     }
     var sql = 'UPDATE t_users SET roomId = ' + roomId + ' WHERE uid = "' + userId + '"';
-    // console.log(sql);
+    // console.log('棋盘 玩家房间信息更新', sql);
     query(sql, function (err, rows, fields) {
         if (err) {
             console.log(err);
@@ -346,19 +423,6 @@ exports.get_room_id_of_user = function (userId, callback) {
             } else {
                 callback(null);
             }
-        }
-    });
-};
-// 房间是否存在
-exports.is_room_exist = function (roomId, callback) {
-    callback = callback == null ? nop : callback;
-    var sql = 'SELECT * FROM t_rooms WHERE roomId = "' + roomId + '"';
-    query(sql, function (err, rows, fields) {
-        if (err) {
-            callback(false);
-            throw err;
-        } else {
-            callback(rows.length > 0);
         }
     });
 };
@@ -481,7 +545,7 @@ exports.set_room_id_of_user_rpg = function (userId, roomId, callback) {
         roomId = '"' + roomId + '"';
     }
     var sql = 'UPDATE t_users SET roomId = ' + roomId + ' WHERE uid = "' + userId + '"';
-    // console.log(sql);
+    // console.log('rpg 玩家房间信息更新', sql);
     query(sql, function (err, rows, fields) {
         if (err) {
             console.log(err);
