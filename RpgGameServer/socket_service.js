@@ -118,7 +118,6 @@ exports.start = function (config, mgr) {
                     critDamage: 0, // 暴击伤害
                     atkRange: 0, // 攻击范围
                     walkSpeed: 0, // 移动速度
-
                     girdX: -1, // 所处位置x
                     girdY: -1, // 所处位置y
                     buffs: [],// 玩家状态
@@ -397,7 +396,7 @@ exports.start = function (config, mgr) {
             var re = socket.gameMgr.playerItemUpdate(userId, data.saveData);
             console.log('物品同步', userId, data);
             if (re == true) {
-                userMgr.broacastInRoom('playerItemUpdate_sync', data, userId, true); // 广播同步
+                userMgr.broacastInRoom('playerItemUpdate_sync', data, userId, true); // 广播同步通知
             }
         });
     });

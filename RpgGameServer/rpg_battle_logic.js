@@ -364,9 +364,10 @@ exports.playerItemUpdate = function (userId, itemData) {
         for (var i = 0; i < items.length; i++) {
             var alreadyHasItem = items[i];
             if (itemData['物品id'] == alreadyHasItem['物品id']) {
+                console.log('更新物品', itemData['物品名字'], itemData['所处位置'])
                 isAlreadyHas = true;
                 items[i] = itemData;
-                return;
+                break;
             }
         }
         if (isAlreadyHas == true) {
@@ -376,7 +377,7 @@ exports.playerItemUpdate = function (userId, itemData) {
         }
         db.update_user_bag_items(userId, JSON.stringify(items), function (data) {
             if (data) {
-                console.log('更新成功')
+                console.log('更新成功', JSON.stringify(items))
             }
         })
     });
