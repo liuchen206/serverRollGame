@@ -209,41 +209,41 @@ exports.start = function (config, mgr) {
                 return;
             }
             // var cmd = {
-            //     action: 'walk',
+            //     action: 'walk', // 玩家移动
             //     girdX: 0,
             //     girdY: 0,
             // }
             // var cmd = {
-            //     action: 'walkByDir',
+            //     action: 'walkByDir', // 玩家摇杆同步
             //     dir: 0,
             // }
             // var cmd = {
-            //     action: 'girdXYSync',
+            //     action: 'girdXYSync', // 玩家位置同步
             //     girdX: 0,
             //     girdY: 0,
             // }
             // var cmd = {
-            //     action: 'monsterWalk',
+            //     action: 'monsterWalk', // 怪物移动
             //     userId: gameSettingIns.uid,
             //     monsterId: mosterData.id,
             //     girdX: gridIndex.x,
             //     girdY: gridIndex.y,
             // }
             // var cmd = {
-            //     action: 'monsterGirdXYSync',
+            //     action: 'monsterGirdXYSync', // 怪物位置同步
             //     monsterId: this.getComponent(OBJConfig).OBJID,
             //     userId: gameSettingIns.uid,
             //     girdX: data.to.x,
             //     girdY: data.to.y,
             // }
             // var cmd = {
-            //     action: 'playerBuffSync',
+            //     action: 'playerBuffSync', // 玩家buff同步
             //     userId: gameSettingIns.uid,
             //     remainTime: this.buffTime,
             //     buffType: this.buffType,
             // }
             // var cmd = {
-            //     action: 'monsterAttack',
+            //     action: 'monsterAttack', // 怪物攻击
             //     userId: gameSettingIns.uid,
             //     monsterId: this.getComponent(OBJConfig).OBJID,
             //     attackUserId: this.getComponent(Brain).attackTarget.getComponent(OBJConfig).OBJID,
@@ -251,7 +251,7 @@ exports.start = function (config, mgr) {
             // }
             // var cmd = {
             //     action: 'playerDamageCause',
-            //     userId: gameSettingIns.uid,
+            //     userId: gameSettingIns.uid,  // 玩家受到伤害
             //     fromId: this.getComponent(OBJConfig).OBJID,
             //     toId: this.getComponent(Brain).attackTarget.getComponent(OBJConfig).OBJID,
             //     attackType: AttackType.normalCloseAttack,
@@ -259,7 +259,7 @@ exports.start = function (config, mgr) {
             // }
             // var cmd = {
             //     action: 'playerAttack',
-            //     fromUserId: gameSettingIns.uid,
+            //     fromUserId: gameSettingIns.uid, // 玩家攻击
             //     monsterId: target.getComponent(OBJConfig).OBJID,
             //     attackType: AttackType.normalCloseAttack,
             // }
@@ -290,6 +290,26 @@ exports.start = function (config, mgr) {
             //     atkRange: levelProperty.atkRange,
             //     walkSpeed: levelProperty.walkSpeed,
             // }
+            // var cmd = {
+            //     action: 'monsterKillReward', // 怪物奖励
+            //     rewards: [],
+            // }
+            // var cmd = {
+            //     action: 'playerExpsUpdate', // 玩家经验刷新
+            //     newExps: newExps,
+            // }
+            // var cmd = {
+            //     action: 'playerLevelUpdate', // 玩家等级提升
+            //     newLevel: gameSettingIns.level + 1,
+            // }
+            // var cmd = {
+            //     action: 'playerHpRecover', // 玩家生命值恢复
+            //     hpTo: newProp.hp,
+            // }
+            // var cmd = {
+            //     action: 'playerMpRecover', // 玩家魔法值恢复
+            //     mpTo: newProp.mp,
+            // }
             if (data.action == 'walk' ||
                 data.action == 'walkByDir' || // 按方向移动只需转发，摇杆停止后，会有寻路指令用来同步数据
                 data.action == 'girdXYSync' ||
@@ -301,6 +321,11 @@ exports.start = function (config, mgr) {
                 data.action == 'monsterDamageCause' ||
                 data.action == 'monsterDead' ||
                 data.action == 'playerPropertySync' ||
+                data.action == 'monsterKillReward' ||
+                data.action == 'playerExpsUpdate' ||
+                data.action == 'playerLevelUpdate' ||
+                data.action == 'playerHpRecover' ||
+                data.action == 'playerMpRecover' ||
                 data.action == 'monsterWalk') {
                 // console.log('syncOBJAction', data.action)
                 data.userId = userId;
@@ -378,6 +403,37 @@ exports.start = function (config, mgr) {
                 var re = socket.gameMgr.monsterDataUpdate(userId, data);
                 if (re == true) {
                     userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true); // 怪物死亡
+                }
+            }
+            if (data.action == 'monsterKillReward') {
+                var re = socket.gameMgr.isDriveClient(userId);
+                if (re == true) {
+                    // console.log('怪物击杀奖励', data)
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true);
+                }
+            }
+            if (data.action == 'playerExpsUpdate') {
+                var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true);
+                }
+            }
+            if (data.action == 'playerLevelUpdate') {
+                var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true);
+                }
+            }
+            if (data.action == 'playerHpRecover') {
+                var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true);
+                }
+            }
+            if (data.action == 'playerMpRecover') {
+                var re = socket.gameMgr.playerDataUpdate(userId, data); // 更新此次同步数据
+                if (re == true) {
+                    userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true);
                 }
             }
         });

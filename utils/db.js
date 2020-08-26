@@ -160,6 +160,52 @@ exports.get_user_bag_items = function (userId, callback) {
     });
 }
 /**
+ * 更新玩家的等级
+ * @param {*} userId 
+ * @param {*} newLevel 
+ * @param {*} callback 
+ */
+exports.set_player_level = function (userId, newLevel, callback) {
+    callback = callback == null ? nop : callback;
+    if (userId == null) {
+        callback(null);
+        return;
+    }
+    var sql = 'UPDATE t_users SET level = ' + newLevel + ' WHERE uid = "' + userId + '"';
+    query(sql, function (err, rows, fields) {
+        if (err) {
+            // console.log(err);
+            callback(false);
+            throw err;
+        } else {
+            callback(rows.length > 0);
+        }
+    });
+}
+/**
+ * 更新玩家当前等级的经验
+ * @param {*} userId 
+ * @param {*} newExps 
+ * @param {*} callback 
+ */
+exports.set_player_exps = function (userId, newExps, callback) {
+    callback = callback == null ? nop : callback;
+    if (userId == null) {
+        callback(null);
+        return;
+    }
+    var sql = 'UPDATE t_users SET exps = ' + newExps + ' WHERE uid = "' + userId + '"';
+    query(sql, function (err, rows, fields) {
+        if (err) {
+            // console.log(err);
+            callback(false);
+            throw err;
+        } else {
+            callback(rows.length > 0);
+        }
+    });
+}
+/**
  * 查询玩家信息
  * @param {*} account 
  * @param {*} callback 

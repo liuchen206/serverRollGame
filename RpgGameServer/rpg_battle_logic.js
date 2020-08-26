@@ -304,6 +304,30 @@ exports.playerDataUpdate = function (userId, data, callback) {
         if (data.action == 'playerDamageCause') {
             userData.currentHp -= data.damage;
         }
+        if (data.action == 'playerExpsUpdate') {
+            // 个人经验等级数据保存在玩家信息之中
+            console.log('更新玩家经验值', data.userId, data.newExps);
+            db.set_player_exps(data.userId, data.newExps, function (data) {
+                if (data == true) {
+                    console.log('经验值更新完毕')
+                }
+            })
+        }
+        if (data.action == 'playerLevelUpdate') {
+            db.set_player_level(data.userId, data.newLevel, function (data) {
+                if (data == true) {
+                    console.log('等级更新完毕')
+                }
+            })
+        }
+        if (data.action == 'playerHpRecover') {
+            userData.currentHp = data.hpTo;
+            exports.syncRpgPlayers(userId, game);
+        }
+        if (data.action == 'playerMpRecover') {
+            userData.currentMp = data.mpTo;
+            exports.syncRpgPlayers(userId, game);
+        }
         return true;
     }
 };
