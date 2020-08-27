@@ -163,6 +163,14 @@ exports.start = function (config, mgr) {
             socket.gameMgr.setReady(userId);
             userMgr.broacastInRoom('user_ready_rpg_push', { userId: userId, ready: true }, userId, true);
         });
+        // 玩家聊天
+        socket.on('playerChat', function (data) {
+            var userId = socket.userId;
+            if (userId == null) {
+                return;
+            }
+            userMgr.broacastInRoom('playerChat_push', data, userId, true);
+        });
         // 怪物生成
         socket.on('monsterCreate', function (data) {
             data = JSON.parse(data);
