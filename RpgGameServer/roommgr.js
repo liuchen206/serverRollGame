@@ -1,4 +1,5 @@
 var db = require('../utils/db');
+var userMgr = require('./usermgr');
 /**
  * 生成一个房间id
  */
@@ -86,6 +87,7 @@ exports.createRoom = function (creator, roomConf, gems, ip, port, callback) {
                         playerNum: roomConf.playerNum, // 开始游戏的玩家数量
                         gameMgr: null, // 游戏逻辑脚本
                         dr: null,// 游戏发起解散数据
+                        rewardDecide: null,// 游戏奖励归属数据
                     };
                     // 游戏逻辑脚本
                     if (roomConf.gameType == 'Rpg_Battle') {
@@ -186,6 +188,40 @@ exports.getUserSeat = function (userId) {
 exports.getRoom = function (roomId) {
     return rooms[roomId];
 };
+/**
+ * 返回房间在线人数
+ */
+exports.getOnlineUserNumber = function (roomId) {
+    var roomInfo = exports.getRoom(roomId);
+    if (!roomInfo) return 0;
+    var onlineNum = 0;
+    for (var i = 0; i < roomInfo.seats.length; i++) {
+        var userData = roomInfo.seats[i];
+        if (userData.userId > 0) {
+            if (userMgr.isOnline(userData.userId) == true) {
+                onlineNum++;
+            }
+        }
+    }
+    return onlineNum;
+}
+/**
+ * 返回在线玩家列表
+ */
+exports.getOnlineUserList = function (roomId) {
+    var roomInfo = exports.getRoom(roomId);
+    if (!roomInfo) return [];
+    var onlineList = [];
+    for (var i = 0; i < roomInfo.seats.length; i++) {
+        var userData = roomInfo.seats[i];
+        if (userData.userId > 0) {
+            if (userMgr.isOnline(userData.userId) == true) {
+                onlineList.push(userData.userId);
+            }
+        }
+    }
+    return onlineList;
+}
 // 进入房间
 var userLocation = {};
 exports.enterRoom = function (roomId, userId, userName, roleName, level, itemInBag, callback) {

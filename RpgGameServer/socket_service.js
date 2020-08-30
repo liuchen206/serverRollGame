@@ -414,7 +414,7 @@ exports.start = function (config, mgr) {
                 }
             }
             if (data.action == 'monsterKillReward') {
-                var re = socket.gameMgr.isDriveClient(userId);
+                var re = socket.gameMgr.monsterReward(userId, data.rewards);
                 if (re == true) {
                     // console.log('怪物击杀奖励', data)
                     userMgr.broacastInRoom('syncRpgOBJActionToOther', data, userId, true);
@@ -457,11 +457,32 @@ exports.start = function (config, mgr) {
                 console.log('没有房间信息，无法同步');
                 return;
             }
-            var re = socket.gameMgr.playerItemUpdate(userId, data.saveData);
-            console.log('物品同步', userId, data);
-            if (re == true) {
-                userMgr.broacastInRoom('playerItemUpdate_sync', data, userId, true); // 广播同步通知
-            }
+            socket.gameMgr.playerItemUpdate(userId, data.saveData, function (re) {
+                if (re != null) {
+                    console.log('物品同步', userId, data);
+                    var returnData = {
+                        userId: userId,
+                        newBagData: re,
+                    }
+                    userMgr.broacastInRoom('playerItemUpdate_sync', returnData, userId, true); // 广播同步通知 新增物品
+                }
+            });
+        });
+        // 玩家放弃奖励物品
+        socket.on('rewardGiveUp', function (data) {
+            data = JSON.parse(data);
+            console.log('rewardGiveUp', data.itemData)
+            var userId = socket.userId;
+            var roomId = roomMgr.getUserRoom(userId);
+            socket.gameMgr.giveUpRequest(roomId, userId, data.itemData)
+        });
+        // 玩家需求奖励物品
+        socket.on('rewardRequire', function (data) {
+            data = JSON.parse(data);
+            console.log('rewardRequire', data.itemData, data.randomNum)
+            var userId = socket.userId;
+            var roomId = roomMgr.getUserRoom(userId);
+            socket.gameMgr.requireRequest(roomId, userId, data.itemData, data.randomNum)
         });
     });
 }

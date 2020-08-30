@@ -249,6 +249,40 @@ exports.addPlayerInGame = function (userId, userData) {
     // 为了快速定位游戏内玩家,这样在存下
     gameSeatsOfUsers[data.userId] = data;
 }
+// 怪物击杀奖励
+exports.monsterReward = function (userId, rewardList) {
+    // 玩家有没有房间
+    var roomId = roomMgr.getUserRoom(userId);
+    if (roomId == null) {
+        return false;
+    }
+    // 房间是不是有效
+    var roomInfo = roomMgr.getRoom(roomId);
+    if (roomInfo == null) {
+        return false;
+    }
+    if (exports.isDriveClient(userId) == false) {
+        return false;
+    }
+    console.log('1111');
+    // 更新相关逻辑
+    var game = games[roomId];
+    if (game == null) {// 游戏未创建
+        return false;
+    } else {
+        console.log('3333', rewardList.length);
+        for (var i = 0; i < rewardList.length; i++) {
+            var oneReward = rewardList[i];
+            console.log('222');
+            // 需要靠roll点决定归属的奖励
+            if (oneReward.dropType == '装备') {
+                console.log('roll奖励', oneReward.dropItemName)
+                exports.addReward(roomId, userId, oneReward);
+            }
+        }
+    }
+    return true;
+}
 // 玩家数据更新
 exports.playerDataUpdate = function (userId, data, callback) {
     // 玩家有没有房间
@@ -279,6 +313,7 @@ exports.playerDataUpdate = function (userId, data, callback) {
             userData.girdY = data.girdY;
         }
         if (data.action == 'playerPropertySync') {
+            console.log('同步属性', userId, data.phyDamage)
             userData.maxHp = data.maxHp;
             userData.maxMp = data.maxMp;
             userData.phyDamage = data.phyDamage;
@@ -303,6 +338,7 @@ exports.playerDataUpdate = function (userId, data, callback) {
         }
         if (data.action == 'playerDamageCause') {
             userData.currentHp -= data.damage;
+            console.log('玩家掉血', userId, data.damage, userData.currentHp)
         }
         if (data.action == 'playerExpsUpdate') {
             // 个人经验等级数据保存在玩家信息之中
@@ -322,10 +358,12 @@ exports.playerDataUpdate = function (userId, data, callback) {
         }
         if (data.action == 'playerHpRecover') {
             userData.currentHp = data.hpTo;
+            console.log('生命值恢复到', userData.currentHp, userId)
             exports.syncRpgPlayers(userId, game);
         }
         if (data.action == 'playerMpRecover') {
             userData.currentMp = data.mpTo;
+            console.log('魔法值恢复到', userData.currentMp, userId)
             exports.syncRpgPlayers(userId, game);
         }
         return true;
@@ -356,10 +394,16 @@ exports.syncRpgPlayers = function (userId, game) {
             walkSpeed: seatData.walkSpeed,
         })
     }
-    userMgr.sendMsg(userId, 'syncRpgPlayers', ret); // 向请求同步的玩家同步其他玩家的信息
+    /**
+     * bug: 当有玩家同步自己的 游戏数据时，要同步给所有人，这其中自然包括了驱动客户端的玩家
+     */
+    userMgr.broacastInRoom('syncRpgPlayers', ret, userId, true); // 向请求同步的玩家同步其他玩家的信息
+    // userMgr.sendMsg(userId, 'syncRpgPlayers', ret); // 向请求同步的玩家同步其他玩家的信息
 }
 // 玩家物品更新
-exports.playerItemUpdate = function (userId, itemData) {
+exports.playerItemUpdate = function (userId, itemData, callback) {
+    callback = callback == null ? nop : callback;
+
     // 玩家有没有房间
     var roomId = roomMgr.getUserRoom(userId);
     if (roomId == null) {
@@ -373,6 +417,7 @@ exports.playerItemUpdate = function (userId, itemData) {
     // 玩家数据
     db.get_user_bag_items(userId, function (data) {
         if (data == null) { // 没有物品信息
+            callback(null);
             return;
         }
         if (data.itemInBag.length > 0) {
@@ -401,11 +446,11 @@ exports.playerItemUpdate = function (userId, itemData) {
         }
         db.update_user_bag_items(userId, JSON.stringify(items), function (data) {
             if (data) {
-                console.log('更新成功', JSON.stringify(items))
+                console.log('背包更新成功')
+                callback(items);
             }
         })
     });
-
 }
 //开始新的一局
 exports.makeGame = function (roomId) {
@@ -428,3 +473,203 @@ exports.makeGame = function (roomId) {
     // 通知游戏循环开始
     game.state = "playing";
 };
+
+/**
+ * 游戏房间奖励获取分配系列操作 start
+ */
+var rewardDecideList = []; // 具有未分配奖励的副本房间
+// 添加一个待分配的奖励
+exports.addReward = function (roomId, userId, rewardItemData) {
+    console.log('奖励获取分配 新增奖励');
+    var roomInfo = roomMgr.getRoom(roomId);
+    if (roomInfo == null) {
+        return null;
+    }
+    var seatIndex = roomMgr.getUserSeat(userId);
+    if (seatIndex == null) {
+        console.log('请求失败，玩家不在座位上');
+        return null;
+    }
+    if (roomInfo.rewardDecide == null) {
+        roomInfo.rewardDecide = [];
+    }
+    //  添加待分配的奖励. 默认认为最多5个人同时在房间副本
+    var states = []; // 玩家是否已经决定
+    var randomNum = []; // 玩家roll点结果
+    var onlineList = roomMgr.getOnlineUserList(roomId);
+    console.log('副本房间在线人数', onlineList.length);
+    if (onlineList.length > 0) {
+        for (var i = 0; i < onlineList.length; i++) {
+            states.push(false);
+            randomNum.push(-1);
+        }
+    }
+    roomInfo.rewardDecide.push({
+        endTime: Date.now() + 10000,
+        onlineList: onlineList, // 有资格获得奖励的玩家列表
+        states: states, // 玩家是否已经操作（需求或者放弃）
+        randomNum: randomNum, // roll点结果
+        rewardItemData: rewardItemData, // 奖励内容
+        isDone: false,// 是否分配结束（当标记为分配结束时，update函数会删除记录)
+    });
+
+    rewardDecideList.push(roomId); // 这里添加一个物品就加入一个房间id会导致列表中有多个房间id。但这样不会产生问题，就不追究了
+    // 通知客户端开始roll点
+    var ret = {
+        rewardItemData: rewardItemData,
+        timeToDecide: 60,
+    }
+    userMgr.broacastInRoom('rewardRollStart', ret, userId, true); // 向请求同步的玩家同步其他玩家的信息
+
+};
+// 玩家放弃奖励
+exports.giveUpRequest = function (roomId, userId, rewardItemData) {
+    var roomInfo = roomMgr.getRoom(roomId);
+    if (roomInfo == null) {
+        console.log('请求失败，游戏找不到房间信息');
+        return null;
+    }
+
+    if (roomInfo.rewardDecide == null) {
+        console.log('请求失败，游戏找不到奖励信息');
+        return null;
+    }
+
+    var seatIndex = roomMgr.getUserSeat(userId);
+    if (seatIndex == null) {
+        console.log('请求失败，玩家不在座位上');
+        return null;
+    }
+    // 将对应奖励的获取资格中去除放弃的玩家
+    for (var i = 0; i < roomInfo.rewardDecide.length; i++) {
+        var oneData = roomInfo.rewardDecide[i];
+        if (rewardItemData['物品id'] == oneData.rewardItemData['物品id']) {
+            var index = -1;
+            for (var j = 0; j < oneData.onlineList.length; j++) {
+                var userCanGetReward = oneData.onlineList[j];
+                if (userCanGetReward == userId) {
+                    index = j;
+                }
+            }
+            if (index < 0) continue; // 玩家没有资格获得该奖励
+            oneData.states[index] = true; // 标记玩家已经操作
+            oneData.randomNum[index] = -1; // 让放弃的玩家roll点为-1.那么一定是roll不过需求的玩家，最后还是以roll点的大小决定奖励的归属
+            // 检查奖励判定是否结束
+            var doAllAgree = true;
+            for (var k = 0; k < oneData.states.length; ++k) {
+                if (oneData.states[k] == false) {
+                    doAllAgree = false;
+                    break;
+                }
+            }
+            if (doAllAgree == true) {
+                // 所有人都决定了。可以分配奖励
+                oneData.isDone = true;
+                exports.sendReward(userId, oneData);
+            }
+        }
+    }
+};
+// 玩家需求奖励
+exports.requireRequest = function (roomId, userId, rewardItemData, randomNum) {
+    var roomInfo = roomMgr.getRoom(roomId);
+    if (roomInfo == null) {
+        console.log('失败，玩家不在座位上');
+        return null;
+    }
+
+    if (roomInfo.rewardDecide == null) {
+        console.log('失败，房间没有解散信息');
+        return null;
+    }
+
+    var seatIndex = roomMgr.getUserSeat(userId);
+    if (seatIndex == null) {
+        console.log('失败，玩家不在座位上');
+        return null;
+    }
+    // 设置玩家的roll点数
+    for (var i = 0; i < roomInfo.rewardDecide.length; i++) {
+        var oneData = roomInfo.rewardDecide[i];
+        if (rewardItemData['物品id'] == oneData.rewardItemData['物品id']) {
+            var index = -1;
+            for (var j = 0; j < oneData.onlineList.length; j++) {
+                var userCanGetReward = oneData.onlineList[j];
+                if (userCanGetReward == userId) {
+                    index = j;
+                }
+            }
+            if (index < 0) continue; // 玩家没有资格获得该奖励
+            oneData.states[index] = true; // 标记玩家已经操作
+            oneData.randomNum[index] = randomNum; // roll 点结果
+            // 检查奖励判定是否结束
+            var doAllAgree = true;
+            for (var i = 0; i < oneData.states.length; ++i) {
+                if (oneData.states[i] == false) {
+                    doAllAgree = false;
+                    break;
+                }
+            }
+            if (doAllAgree == true) {
+                // 所有人都决定了。可以分配奖励
+                oneData.isDone = true;
+                exports.sendReward(userId, oneData);
+            }
+        }
+    }
+};
+/**
+ * 发送奖励归属
+ */
+exports.sendReward = function (userId, oneData) {
+    var maxNum = -1;
+    var maxIndex = -1;
+    for (l = 0; l < oneData.randomNum.length; l++) {
+        if (oneData.randomNum[l] > maxNum) {
+            maxNum = oneData.randomNum[l];
+            maxIndex = l;
+        }
+    }
+    if (maxIndex < 0) {
+        // 表示所有人放弃了
+        maxIndex = 0; // 就给第一个人把(也是第一个进房间的，也是房间的创建者)
+    }
+    var ret = {
+        maxNum: maxNum,
+        winner: oneData.onlineList[maxIndex],
+        onlineList: oneData.onlineList, // 参与roll点玩家
+        randomNum: oneData.randomNum, // roll点结果
+        rewardItemData: oneData.rewardItemData, // 奖励物品
+    }
+    userMgr.broacastInRoom('rewardRollResult', ret, userId, true); // 向请求同步的玩家同步其他玩家的信息
+}
+
+function update() {
+    for (var i = rewardDecideList.length - 1; i >= 0; --i) {
+        var roomId = rewardDecideList[i];
+
+        var roomInfo = roomMgr.getRoom(roomId);
+        if (roomInfo != null && roomInfo.rewardDecide != null && roomInfo.rewardDecide.length > 0) {
+            for (var j = 0; j < roomInfo.rewardDecide.length; j++) {
+                var oneData = roomInfo.rewardDecide[j];
+                if (Date.now() > oneData.endTime || oneData.isDone == true) {
+                    if (Date.now() > oneData.endTime) {
+                        console.log("超过了决定时间，立即发放", oneData.rewardItemData['物品名字']);
+                        exports.sendReward(oneData.onlineList[0], oneData);
+                    }
+                    if (oneData.isDone == true) {
+                        console.log("已经决出roll点胜者", oneData.rewardItemData['物品名字']);
+                    }
+                    roomInfo.rewardDecide.splice(j, 1);
+                }
+            }
+        } else {
+            rewardDecideList.splice(i, 1);
+        }
+    }
+}
+
+setInterval(update, 1000);
+/**
+ * 游戏房间奖励获取分配系列操作 end
+ */
