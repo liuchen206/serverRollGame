@@ -386,7 +386,7 @@ exports.update_seat_info = function (roomId, seatIndex, userId, name, coin, call
     var sql = 'UPDATE t_rooms SET user_id{0} = {1},user_name{0} = "{2}",user_coin{0} = "{3}" WHERE roomId = "{4}"';
     // name = crypto.toBase64(name);
     sql = sql.format(seatIndex, userId, name, coin, roomId);
-    //console.log(sql);
+    console.log(sql);
     query(sql, function (err, row, fields) {
         if (err) {
             callback(false);
