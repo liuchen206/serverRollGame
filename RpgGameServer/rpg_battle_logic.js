@@ -139,10 +139,40 @@ exports.monsterDataUpdate = function (userId, data) {
         if (exports.isDriveClient(data.userId)) {
             if (data.action == 'monsterDamageCause') {
                 // 找到对应怪物数据
-                // console.log('怪物扣血，向 怪物', data.toId, '从玩家 ', data.fromId, '伤害：', data.damage);
+                console.log('怪物扣血，向 怪物', data.toId, '从玩家 ', data.fromId, '伤害：', data.damage);
                 var monData = gameMonstersMap[data.toId];
                 if (monData) {
                     monData.currentHp -= data.damage;
+
+                    // 是否已经记录过仇恨
+                    var isAdded = false;
+                    for (var index = 0; index < monData.hateList.length; index++) {
+                        var oneHate = monData.hateList[index];
+                        // {
+                        //     userId:xxx,
+                        //     hate:xxx,
+                        // }
+                        console.log('遍历总览', oneHate.userId)
+                        if (oneHate.userId == data.fromId) {
+                            console.log('叠加仇恨值', oneHate.userId, data.fromId)
+                            oneHate.hate += data.damage;
+                            isAdded = true;
+                            break;
+                        }
+                    }
+                    if (isAdded == false) {
+                        console.log('添加新仇恨值', data.fromId)
+                        monData.hateList.push({
+                            userId: data.fromId,
+                            hate: data.damage,
+                        })
+                    }
+                    var ret = {
+                        monsterId: monData.id,
+                        newHateList: monData.hateList,
+                    }
+                    userMgr.broacastInRoom('syncMonsterHateList', ret, userId, true);
+
                 }
             }
             if (data.action == 'monsterDead') {

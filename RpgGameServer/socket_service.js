@@ -196,6 +196,9 @@ exports.start = function (config, mgr) {
             // proty.critDamage = monData.critDamage; // 暴击伤害
             // proty.atkRange = monData.atkRange;// 攻击范围
             // proty.walkSpeed = monData.walkSpeed;// 移动速度
+
+            // hateList: [], // 仇恨列表
+
             //     girdX: endGrid.x,
             //     girdY: endGrid.y,
             // }
