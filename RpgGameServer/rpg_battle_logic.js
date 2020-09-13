@@ -336,7 +336,7 @@ exports.playerDataUpdate = function (userId, data, callback) {
         if (data.action == 'girdXYSync') { // 请求立即同步
             userData.girdX = data.girdX;
             userData.girdY = data.girdY;
-            exports.syncRpgPlayers(userId, game);
+            exports.syncRpgPlayersPosition(userId, game);
         }
         if (data.action == 'walk') { // 寻路移动
             userData.girdX = data.girdX;
@@ -399,8 +399,8 @@ exports.playerDataUpdate = function (userId, data, callback) {
         return true;
     }
 };
-// 向玩家同步玩家信息
-exports.syncRpgPlayers = function (userId, game) {
+// 位置同步
+exports.syncRpgPlayersPosition = function (userId, game) {
     // 玩家准备完毕之后，向玩家推送玩家游戏状态
     var ret = [];
     for (var index = 0; index < game.gameSeats.length; index++) {
@@ -409,6 +409,18 @@ exports.syncRpgPlayers = function (userId, game) {
             userId: seatData.userId,
             girdX: seatData.girdX,
             girdY: seatData.girdY,
+        })
+    }
+    userMgr.broacastInRoom('syncRpgPlayersPosition', ret, userId, true); // 向请求同步的玩家同步其他玩家的信息
+}
+// 向玩家同步玩家信息
+exports.syncRpgPlayers = function (userId, game) {
+    // 玩家准备完毕之后，向玩家推送玩家游戏状态
+    var ret = [];
+    for (var index = 0; index < game.gameSeats.length; index++) {
+        var seatData = game.gameSeats[index];
+        ret.push({
+            userId: seatData.userId,
             currentHp: seatData.currentHp,
             currentMp: seatData.currentMp,
             maxHp: seatData.maxHp,

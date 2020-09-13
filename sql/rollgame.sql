@@ -10,7 +10,7 @@ Target Server Type    : MYSQL
 Target Server Version : 50173
 File Encoding         : 65001
 
-Date: 2020-08-30 16:20:26
+Date: 2020-09-05 16:35:01
 */
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -29,13 +29,19 @@ CREATE TABLE `t_rooms` (
   `create_time` int(11) DEFAULT NULL,
   `baseInfo` varchar(255) DEFAULT NULL,
   `user_id0` int(11) NOT NULL DEFAULT '0',
-  `user_name0` varchar(32) DEFAULT '',
+  `user_name0` varchar(32) CHARACTER SET utf8 DEFAULT '0',
   `user_coin0` int(11) DEFAULT '0',
   `user_id1` int(11) DEFAULT '0',
-  `user_name1` varchar(32) DEFAULT '',
+  `user_name1` varchar(32) CHARACTER SET utf8 DEFAULT '0',
   `user_coin1` int(11) DEFAULT '0',
+  `user_name2` varchar(32) CHARACTER SET utf8 DEFAULT '0',
+  `user_name3` varchar(32) CHARACTER SET utf8 DEFAULT '0',
+  `user_name4` varchar(32) CHARACTER SET utf8 DEFAULT '0',
+  `user_coin2` int(11) DEFAULT '0',
+  `user_coin3` int(11) DEFAULT '0',
+  `user_coin4` int(11) DEFAULT '0',
   PRIMARY KEY (`uuid`)
-) ENGINE=InnoDB AUTO_INCREMENT=158 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=165 DEFAULT CHARSET=latin1;
 
 -- ----------------------------
 -- Table structure for t_rooms_rpg
@@ -50,11 +56,17 @@ CREATE TABLE `t_rooms_rpg` (
   `create_time` int(11) DEFAULT NULL,
   `baseInfo` varchar(255) DEFAULT NULL,
   `user_id0` int(11) NOT NULL DEFAULT '0',
-  `user_name0` varchar(32) DEFAULT '',
+  `user_name0` varchar(32) CHARACTER SET utf8 DEFAULT '0',
   `user_id1` int(11) DEFAULT '0',
-  `user_name1` varchar(32) DEFAULT '',
+  `user_name1` varchar(32) CHARACTER SET utf8 DEFAULT '0',
+  `user_id2` int(11) DEFAULT '0',
+  `user_id3` int(11) DEFAULT '0',
+  `user_id4` int(11) DEFAULT '0',
+  `user_name2` varchar(32) CHARACTER SET utf8 DEFAULT '0',
+  `user_name3` varchar(32) CHARACTER SET utf8 DEFAULT '0',
+  `user_name4` varchar(32) CHARACTER SET utf8 DEFAULT '0',
   PRIMARY KEY (`uuid`)
-) ENGINE=InnoDB AUTO_INCREMENT=756 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=853 DEFAULT CHARSET=latin1;
 
 -- ----------------------------
 -- Table structure for t_users
@@ -71,4 +83,4 @@ CREATE TABLE `t_users` (
   `itemInBag` text CHARACTER SET utf8 NOT NULL,
   `roleName` varchar(64) CHARACTER SET utf8 DEFAULT '',
   PRIMARY KEY (`uid`)
-) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=latin1;
